@@ -1,0 +1,66 @@
+apply plugin: 'com.android.model.application'
+
+def gpg_sdk_path = file(project(':thirdparty:gpg-sdk').projectDir).absolutePath + "/gpg-cpp-sdk/android"
+
+model {
+
+    repositories {
+        libs(PrebuiltLibraries) {
+            gpg {
+                headers.srcDir "${gpg_sdk_path}/include"
+                binaries.withType(SharedLibraryBinary) {
+                    //
+                    // NOTE: this block should be "StaticLibraryBinary"/staticLibraryFile - but SharedLibraryBinary works and StaticLibraryBinary doesn't as of 0.6.0-alpha2
+                    // bug reported here: https://code.google.com/p/android/issues/detail?id=196065
+                    //
+                    sharedLibraryFile = file("${gpg_sdk_path}/lib/c++/${targetPlatform.getName()}/libgpg.a")
+                }
+            }
+        }
+    }
+
+    android {
+        compileSdkVersion = 23
+        buildToolsVersion = "23.0.0"
+
+        defaultConfig.with {
+            //
+            //  NOTE: change the application ID to match the play console linked application.
+            //
+            applicationId = "com.example.android.hello_thirdparty"
+            minSdkVersion.apiLevel    = 9
+            targetSdkVersion.apiLevel = 23
+        }
+    }
+
+    android.ndk {
+        moduleName = "native-activity"
+        platformVersion = 9 //same as minSdkVersion.apiLevel for better compatibility
+        stl    = "c++_static"
+        ldLibs.addAll(["atomic", "log", "android", "EGL", "GLESv1_CM", "z"]) //gpg depends on atomic, log and z
+        abiFilters.addAll(["armeabi", "armeabi-v7a", "x86", "arm64-v8a"]) //filtering ABIs on the ones Google Play Games library is compatible with.
+    }
+
+    android.sources {
+        main {
+            jni {
+                dependencies {
+                    library "gpg"
+                }
+            }
+        }
+    }
+
+    android.buildTypes {
+        release {
+            minifyEnabled = false
+        }
+    }
+}
+
+dependencies {
+    compile 'com.google.android.gms:play-services-games:8.3.0'
+    compile 'com.google.android.gms:play-services-base:8.3.0'
+    compile 'com.google.android.gms:play-services-appstate:8.3.0'
+    compile 'com.google.android.gms:play-services-nearby:8.3.0'
+}
