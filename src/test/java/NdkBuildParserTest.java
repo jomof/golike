@@ -1,19 +1,26 @@
-import static org.junit.Assert.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 
 /**
  * Created by jomof on 1/4/16.
  */
 public class NdkBuildParserTest {
 
-    public void simpleTest() {
+    @Test
+    public void simpleTest() throws FileNotFoundException {
+        FileReader reader = new FileReader("support-files/android-ndk-android-mk/hello-jni/jni/Android.mk");
 
     }
-    @org.junit.Before
+    @Before
     public void setUp() throws Exception {
 
     }
 
-    @org.junit.After
+    @After
     public void tearDown() throws Exception {
 
     }
