@@ -1,27 +1,64 @@
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 
 /**
  * Created by jomof on 1/4/16.
  */
 public class NdkBuildParserTest {
 
+
     @Test
-    public void simpleTest() throws FileNotFoundException {
-        FileReader reader = new FileReader("support-files/android-ndk-android-mk/hello-jni/jni/Android.mk");
-
-    }
-    @Before
-    public void setUp() throws Exception {
-
+    public void simpleAssign() throws FileNotFoundException {
+        expectParsed("a:=b", "(:= a b)");
     }
 
-    @After
-    public void tearDown() throws Exception {
-
+    @Test
+    public void compoundAssign() throws FileNotFoundException {
+        expectParsed("a:=b c", "(:= a [b c ])");
     }
+
+    private void expectParsed(String target, String expected) {
+        NdkBuildParser parser = new NdkBuildParser();
+        String result = treeString(parser.parse(target));
+        if (!result.equals(expected)) {
+            throw new RuntimeException(String.format("Expected %s but got %s", expected, result));
+        }
+    }
+
+    private String treeString(NdkBuildParser.Node node) {
+        StringBuilder sb = new StringBuilder();
+        treeStringBuilder(node, sb);
+        return sb.toString();
+    }
+
+    private void treeStringBuilder(NdkBuildParser.Node node, StringBuilder sb) {
+        switch(node.type) {
+            case TYPE_BLOCK_EXPRESSION: {
+                sb.append("[");
+                for(NdkBuildParser.Node child : ((NdkBuildParser.BlockExpression)node).expressions) {
+                    treeStringBuilder(child, sb);
+                    sb.append(" ");
+                }
+                sb.append("]");
+                return;
+            }
+            case TYPE_IDENTIFIER_EXPRESSION: {
+                sb.append(((NdkBuildParser.IdentifierExpression)node).identifier);
+                return;
+            }
+            case TYPE_SIMPLE_ASSIGN_EXPRESSION: {
+                sb.append("(:= ");
+                NdkBuildParser.AssignmentExpression expr = (NdkBuildParser.AssignmentExpression) node;
+                treeStringBuilder(expr.left, sb);
+                sb.append(" ");
+                treeStringBuilder(expr.right, sb);
+                sb.append(")");
+                return;
+            }
+            default:
+                throw new RuntimeException(node.type.toString());
+        }
+    }
+
 }

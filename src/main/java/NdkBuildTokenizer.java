@@ -33,26 +33,11 @@
  */
 public class NdkBuildTokenizer {
 
-    private static boolean isWhitespace(char c) {
-        return c == ' ' || c == '\t';
-    }
 
-    private static boolean isIdentifierStart(char c) {
-        return (c >= 'a' && c <= 'z')
-                || (c >= 'A' && c <= 'Z')
-                || (c == '_') || (c == '-') || (c == '.')
-                || (c == '/');
-
-    }
-
-    private static boolean isIdentifier(char c) {
-        return isIdentifierStart(c) || (c >= '0' && c <= '9');
-    }
-
-    private static int readWhitespace(String string, int index, TokenReceiver receiver) {
+    private static int readWhitespace(String string, int index, NdkBuildTokenReceiver receiver) {
         int start = index;
         while(index < string.length()
-                && isWhitespace(string.charAt(index))) {
+                && NdkBuildCharUtil.isWhitespace(string.charAt(index))) {
             ++index;
         }
 
@@ -64,7 +49,7 @@ public class NdkBuildTokenizer {
         return index;
     }
 
-    private static int readComment(String string, int index, TokenReceiver receiver) {
+    private static int readComment(String string, int index, NdkBuildTokenReceiver receiver) {
         int start = index;
         while(index < string.length()
                 && Character.getType(string.charAt(index)) != Character.CONTROL) {
@@ -79,11 +64,22 @@ public class NdkBuildTokenizer {
         return index;
     }
 
-    private static int readIdentifier(String string, int index, TokenReceiver receiver) {
+    private static int readNumber(String string, int index, NdkBuildTokenReceiver receiver) {
+        int start = index;
+        ++index;
+        while (index < string.length()
+                && NdkBuildCharUtil.isNumber(string.charAt(index))) {
+            ++index;
+        }
+        receiver.number(string.substring(start, index));
+        return index;
+    }
+
+    private static int readIdentifier(String string, int index, NdkBuildTokenReceiver receiver) {
         int start = index;
         ++index;
         while(index < string.length()
-                && isIdentifier(string.charAt(index))) {
+                && NdkBuildCharUtil.isIdentifier(string.charAt(index))) {
             ++index;
         }
 
@@ -99,8 +95,23 @@ public class NdkBuildTokenizer {
             return index;
         }
 
+        if (identifier.equals("ifneq")) {
+            receiver.ifneq();
+            return index;
+        }
+
         if (identifier.equals("endif")) {
             receiver.endif();
+            return index;
+        }
+
+        if (identifier.equals("define")) {
+            receiver.define();
+            return index;
+        }
+
+        if (identifier.equals("endef")) {
+            receiver.endef();
             return index;
         }
 
@@ -114,41 +125,24 @@ public class NdkBuildTokenizer {
     private static int readEverythingElse(String string, int index) {
         int start = index;
         while(index < string.length()
-                && !isWhitespace(string.charAt(index))) {
+                && !NdkBuildCharUtil.isWhitespace(string.charAt(index))) {
             ++index;
         }
 
         throw new RuntimeException(String.format("{b:%s}", string.substring(start, index)));
     }
 
-    private static int eatPastLineFeed(String string, int index) {
-        while(isWhitespace(string.charAt(index))) index++;
-        while(string.charAt(index) == '\r') index++;
-        if (string.charAt(index) == '\n') {
-            index++;
-        }
-        while(isWhitespace(string.charAt(index))) index++;
-        return index;
-    }
-
-    private static int readRValue(String string, int index, TokenReceiver receiver) {
+    private static int readRValue_(String string, int index, NdkBuildTokenReceiver receiver) {
         int start = index;
         StringBuilder sb = new StringBuilder();
         while(index < string.length()
                 && Character.getType(string.charAt(index)) != Character.CONTROL) {
-            if (string.charAt(index) == '\\') {
-                sb.append(string.substring(start, index));
-                // Make sure there is at least one space delimiting lines
-                if (string.charAt(index - 1) != ' ' ) {
-                    sb.append(" ");
-                }
-                start = index = eatPastLineFeed(string, index + 1);
-            } else {
-                ++index;
-            }
+            ++index;
         }
         sb.append(string.substring(start, index));
-        receiver.rvalue(sb.toString().trim());
+
+        // Recursively parse the RValue
+        apply(string.substring(start, index), receiver);
 
         if (index == string.length()) {
             return -1;
@@ -156,7 +150,7 @@ public class NdkBuildTokenizer {
         return index;
     }
 
-    private static int readColonOperator(String string, int index, TokenReceiver receiver) {
+    private static int readColonOperator(String string, int index, NdkBuildTokenReceiver receiver) {
         ++index;
         if (index == string.length()) {
             return -1;
@@ -168,14 +162,27 @@ public class NdkBuildTokenizer {
                 if (index == string.length()) {
                     return -1;
                 }
-
-                // Remove leading whitespace
-                return readRValue(string, index, receiver);
+                return index;
         }
-        return readEverythingElse(string, index - 1);
+        receiver.expected(":");
+        return index;
     }
 
-    private static int readPlusOperator(String string, int index, TokenReceiver receiver) {
+    private static int readEqualsOperator(String string, int index, NdkBuildTokenReceiver receiver) {
+        ++index;
+        if (index == string.length()) {
+            return -1;
+        }
+        ++index;
+        receiver.equals();
+        if (index == string.length()) {
+            return -1;
+        }
+
+        return index;
+    }
+
+    private static int readPlusOperator(String string, int index, NdkBuildTokenReceiver receiver) {
         ++index;
         if (index == string.length()) {
             return -1;
@@ -188,13 +195,13 @@ public class NdkBuildTokenizer {
                     return -1;
                 }
 
-                // Remove leading whitespace
-                return readRValue(string, index, receiver);
+                return index;
         }
-        return readEverythingElse(string, index - 1);
+        receiver.plus();
+        return index;
     }
 
-    private static int readDollarOperator(String string, int index, TokenReceiver receiver) {
+    private static int readDollarOperator(String string, int index, NdkBuildTokenReceiver receiver) {
         ++index;
         if (index == string.length()) {
             return -1;
@@ -205,10 +212,43 @@ public class NdkBuildTokenizer {
                 receiver.dollarOpenParen();
                 return index;
         }
-        return readEverythingElse(string, index - 1);
+        receiver.expected("$");
+        return index;
     }
 
-    private static int readToken(String string, int index, TokenReceiver receiver) {
+    private static int readAmpOperator(String string, int index, NdkBuildTokenReceiver receiver) {
+        ++index;
+        if (index == string.length()) {
+            return -1;
+        }
+        switch(string.charAt(index)) {
+            case '&':
+                ++index;
+                receiver.ampAmp();
+                return index;
+        }
+        receiver.amp();
+        return index;
+    }
+
+    private static int readQuestionOperator(String string, int index, NdkBuildTokenReceiver receiver) {
+        ++index;
+        if (index == string.length()) {
+            return -1;
+        }
+        switch(string.charAt(index)) {
+            case '=':
+                ++index;
+                receiver.assignConditional();
+                return index;
+        }
+        return index;
+    }
+
+    private static int readToken(String string, int index, NdkBuildTokenReceiver receiver) {
+        if (string.length() == index) {
+            return -1;
+        }
         switch (string.charAt(index)) {
             case '#':
                 return readComment(string, index, receiver);
@@ -216,12 +256,26 @@ public class NdkBuildTokenizer {
                 return readWhitespace(string, index, receiver);
             case ':':
                 return readColonOperator(string, index, receiver);
+            case '=':
+                return readEqualsOperator(string, index, receiver);
             case '+':
                 return readPlusOperator(string, index, receiver);
             case '$':
                 return readDollarOperator(string, index, receiver);
+            case '&':
+                return readAmpOperator(string, index, receiver);
+            case '?':
+                return readQuestionOperator(string, index, receiver);
+            case ';':
+                receiver.semicolon();
+                ++index;
+                return index;
             case ',':
                 receiver.comma();
+                ++index;
+                return index;
+            case '|':
+                receiver.pipe();
                 ++index;
                 return index;
             case '(':
@@ -232,30 +286,67 @@ public class NdkBuildTokenizer {
                 receiver.closeParen();
                 ++index;
                 return index;
+            case '[':
+                receiver.openBracket();
+                ++index;
+                return index;
+            case ']':
+                receiver.closeBracket();
+                ++index;
+                return index;
+            case '<':
+                receiver.lessThan();
+                ++index;
+                return index;
+            case '>':
+                receiver.greaterThan();
+                ++index;
+                return index;
+            case '@':
+                receiver.at();
+                ++index;
+                return index;
+            case '*':
+                receiver.star();
+                ++index;
+                return index;
+            case '\"':
+                receiver.doubleQuote();
+                ++index;
+                return index;
             case '\r':
             case '\n':
                 receiver.endline();
                 ++index;
                 return index;
+            case '\'':
+            case '!':
+                receiver.expected(string.substring(index, index + 1));
+                ++index;
+                return index;
         }
-        if (isWhitespace(string.charAt(index))) {
+
+        if (NdkBuildCharUtil.isWhitespace(string.charAt(index))) {
             return readWhitespace(string, index, receiver);
         }
-        if (isIdentifierStart(string.charAt(index))) {
+
+        if (NdkBuildCharUtil.isIdentifierStart(string.charAt(index))) {
             return readIdentifier(string, index, receiver);
+        }
+
+        if (NdkBuildCharUtil.isNumber(string.charAt(index))) {
+            return readNumber(string, index, receiver);
         }
 
         return readEverythingElse(string, index);
     }
 
-    public static void apply(String string, TokenReceiver receiver) {
+    public static void apply(String string, NdkBuildTokenReceiver receiver) {
         int index = 0;
-        while(index != -1) {
+        string = NdkBuildDecontinuizer.apply(string);
+        while(index != -1 && index != string.length()) {
             index = readToken(string, index, receiver);
-            if (index == string.length()) {
-                return;
-            }
-
         }
+        receiver.endline();
     }
 }
