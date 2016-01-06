@@ -95,6 +95,11 @@ public class NdkBuildTokenizer {
             return index;
         }
 
+        if (identifier.equals("ifdef")) {
+            receiver.ifdef();
+            return index;
+        }
+
         if (identifier.equals("ifneq")) {
             receiver.ifneq();
             return index;

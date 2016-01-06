@@ -2,36 +2,69 @@
  * Created by jomof on 1/4/16.
  */
 public interface NdkBuildTokenReceiver {
-    void whitespace(String whitespace);
-    void comment(String comment);
-    void include();
-    void define();
-    void endef();
-    void identifier(String identifier);
-    void number(String number);
-    void at(); // @ (suppress echo)
-    void equals(); // =
-    void assign(); // :=
-    void assignConditional(); // ?=
-    void append(); // +=
-    void ifeq();
-    void ifneq();
-    void endif();
-    void dollarOpenParen();
-    void openParen();
-    void closeParen();
-    void openBracket();
-    void closeBracket();
-    void lessThan();
-    void greaterThan();
-    void semicolon(); // ;
-    void pipe(); // |
-    void star(); // *
-    void plus(); // +
     void amp(); // &
+
     void ampAmp(); // &&
+
+    void append(); // +=
+
+    void assign(); // :=
+
+    void assignConditional(); // ?=
+
+    void at(); // @ (suppress echo)
+
+    void closeBracket();
+
+    void closeParen();
+
     void comma();
+
+    void comment(String comment);
+
+    void define();
+
+    void dollarOpenParen();
+
     void doubleQuote();
-    void expected(String string);
+
+    void endef();
+
+    void endif();
+
     void endline();
+
+    void equals(); // =
+
+    void expected(String string);
+
+    void greaterThan();
+
+    void identifier(String identifier);
+
+    void ifdef();
+
+    void ifeq();
+
+    void ifneq();
+
+    void include();
+
+    void lessThan();
+
+    void number(String number);
+
+    void openBracket();
+
+    void openParen();
+
+    void pipe(); // |
+
+    void plus(); // +
+
+    void semicolon(); // ;
+
+    void star(); // *
+
+    void whitespace(String whitespace);
 }
