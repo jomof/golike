@@ -35,6 +35,17 @@ public class NdkBuildParserTest {
 
     private static void treeStringBuilder(NdkBuildParser.Node node, StringBuilder sb) {
         switch(node.type) {
+            case TYPE_CONCAT_EXPRESSION: {
+                sb.append("(concat ");
+                StringBuilder sub = new StringBuilder();
+                for (NdkBuildParser.Node child : ((NdkBuildParser.ConcatExpression) node).expressions) {
+                    treeStringBuilder(child, sub);
+                    sub.append(" ");
+                }
+                sb.append(sub.toString().trim());
+                sb.append(")");
+                return;
+            }
             case TYPE_BLOCK_EXPRESSION: {
                 sb.append("[");
                 StringBuilder sub = new StringBuilder();
@@ -68,6 +79,14 @@ public class NdkBuildParserTest {
                 sb.append(")");
                 return;
             }
+
+            case TYPE_MACRO_EXPRESSION: {
+                sb.append("(macro ");
+                NdkBuildParser.MacroExpression expr = (NdkBuildParser.MacroExpression) node;
+                treeStringBuilder(expr.body, sb);
+                sb.append(")");
+                return;
+            }
             default:
                 throw new RuntimeException(node.type.toString());
         }
@@ -92,6 +111,11 @@ public class NdkBuildParserTest {
     }
 
     @Test
+    public void compoundAssignBothSpace() throws FileNotFoundException {
+        expectParsed("a := b c", "(:= a [b c])");
+    }
+
+    @Test
     public void compoundAssignLeadingSpace() throws FileNotFoundException {
         expectParsed("a :=b c", "(:= a [b c])");
     }
@@ -102,18 +126,42 @@ public class NdkBuildParserTest {
     }
 
     @Test
-    public void compoundAssignBothSpace() throws FileNotFoundException {
-        expectParsed("a := b c", "(:= a [b c])");
+    public void concatenatedPath1() throws FileNotFoundException {
+        expectParsed("$(FOO)/a/b/c", "(concat (macro FOO) /a/b/c)");
     }
 
+    @Test
+    public void concatenatedPath2() throws FileNotFoundException {
+        expectParsed("a/b/c/$(FOO)", "(concat a/b/c/ (macro FOO))");
+    }
+
+    @Test
+    public void concatenatedPath3() throws FileNotFoundException {
+        expectParsed("a/b c/$(FOO)", "[a/b (concat c/ (macro FOO))]");
+    }
+
+    @Test
+    public void concatenatedPath4() throws FileNotFoundException {
+        expectParsed("$(FOO)$(BAR)", "(concat (macro FOO) (macro BAR))");
+    }
+
+    @Test
+    public void concatenatedPath5() throws FileNotFoundException {
+        expectParsed("$($(BAR))", "(macro (macro BAR))");
+    }
+
+    @Test
+    public void concatenatedPath6() throws FileNotFoundException {
+        expectParsed("$(a b c d)", "(macro [a b c d])");
+    }
 
     @Test
     public void ifdef() throws FileNotFoundException {
         expectParsed(
                 "ifdef a\n" +
-                "  b \\\n" +
-                "  c\n" +
-                "endef", "(ifdef a [b c])");
+                        "  b \\\n" +
+                        "  c\n" +
+                        "endef", "(ifdef a [b c])");
     }
 
     @Test
@@ -142,19 +190,7 @@ public class NdkBuildParserTest {
                 "endef", "(ifdef a (ifdef b [c d]))");
     }
 
-    @Test
-    public void simpleAssign() throws FileNotFoundException {
-        expectParsed("a:=b", "(:= a b)");
-    }
-
-    /*
-    @Test
-    public void assignMacro() throws FileNotFoundException {
-        expectParsed("TARGET_C_INCLUDES := \\\n" +
-                "    $(SYSROOT_INC)/usr/include", "(:= a b)");
-    }*/
-
-//    @Test
+    //    @Test
     public void simpleApply() throws IOException {
         checkFile("support-files/android-ndk-r10e/toolchains/aarch64-linux-android-clang3.5/config.mk");
         checkFile("support-files/android-ndk-r10e/toolchains/aarch64-linux-android-clang3.5/setup.mk");
@@ -624,5 +660,17 @@ public class NdkBuildParserTest {
         checkFile("support-files/android-ndk-android-mk/native-codec/jni/Android.mk");
         checkFile("support-files/android-ndk-android-mk/san-angeles/jni/Application.mk");
         checkFile("support-files/android-ndk-android-mk/san-angeles/jni/Android.mk");
+    }
+
+    /*
+    @Test
+    public void assignMacro() throws FileNotFoundException {
+        expectParsed("TARGET_C_INCLUDES := \\\n" +
+                "    $(SYSROOT_INC)/usr/include", "(:= a b)");
+    }*/
+
+    @Test
+    public void simpleAssign() throws FileNotFoundException {
+        expectParsed("a:=b", "(:= a b)");
     }
 }
