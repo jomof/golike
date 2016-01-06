@@ -9,166 +9,6 @@ import java.nio.file.Paths;
  * Created by jomof on 1/4/16.
  */
 public class NdkBuildTokenizerTest {
-    class StringPrintingTokenReceiver implements TokenReceiver {
-        public StringBuilder sb = new StringBuilder();
-
-        @Override
-        public void whitespace(String whitespace) {
-            sb.append(whitespace);
-        }
-
-        @Override
-        public void comment(String comment) {
-            sb.append(String.format("{c:%s}", comment));
-        }
-
-        @Override
-        public void include() {
-            sb.append(String.format("{include}"));
-        }
-
-        @Override
-        public void define() {
-            sb.append(String.format("{define}"));
-        }
-
-        @Override
-        public void endef() {
-            sb.append(String.format("{endef}"));
-        }
-
-        @Override
-        public void identifier(String identifier) {
-            sb.append(String.format("{id:%s}", identifier));
-        }
-
-        @Override
-        public void number(String number) {
-            sb.append(String.format("{num:%s}", number));
-        }
-
-        @Override
-        public void at() {
-            sb.append("@");
-        }
-
-        @Override
-        public void rvalue(String rvalue) {
-            sb.append(String.format("{rv:%s}", rvalue));
-        }
-
-        @Override
-        public void equals() {
-            sb.append(String.format("{=}"));
-        }
-
-        @Override
-        public void assign() {
-            sb.append(String.format("{:=}"));
-        }
-
-        @Override
-        public void assignConditional() {
-            sb.append(String.format("{?=}"));
-        }
-
-        @Override
-        public void append() {
-            sb.append(String.format("{+=}"));
-        }
-
-        @Override
-        public void ifeq() {
-            sb.append(String.format("{ifeq}"));
-        }
-
-        @Override
-        public void ifneq() {
-            sb.append(String.format("{ifneq}"));
-        }
-
-        @Override
-        public void endif() {
-            sb.append(String.format("{endif}"));
-        }
-
-        @Override
-        public void dollarOpenParen() {
-            sb.append(String.format("$("));
-        }
-
-        @Override
-        public void openParen() {
-            sb.append(String.format("("));
-        }
-
-        @Override
-        public void comma() {
-            sb.append("{,}");
-        }
-
-        @Override
-        public void doubleQuote() {
-            sb.append("{quot}");
-        }
-
-        @Override
-        public void expected(String s) {
-            sb.append(String.format("{ex:%s}", s));
-        }
-
-        @Override
-        public void closeParen() {
-            sb.append(String.format(")"));
-        }
-
-        @Override
-        public void openBracket() {
-            sb.append("{[}");
-        }
-
-        @Override
-        public void closeBracket() {
-            sb.append("{]}");
-        }
-
-        @Override
-        public void lessThan() {
-            sb.append("{<}");
-        }
-
-        @Override
-        public void greaterThan() {
-            sb.append("{>}");
-        }
-
-        @Override
-        public void pipe() {
-            sb.append("{|}");
-        }
-
-        @Override
-        public void star() {
-            sb.append("{*}");
-        }
-
-        @Override
-        public void plus() {
-            sb.append("{+}");
-        }
-
-        @Override
-        public void ampAmp() {
-            sb.append("{&&}");
-        }
-
-        @Override
-        public void endline() {
-            sb.append("\n");
-
-        }
-    }
-
     private void checkFile(String file) throws IOException {
         byte[] encoded = Files.readAllBytes(Paths.get(file));
         StringPrintingTokenReceiver receiver = new StringPrintingTokenReceiver();
@@ -195,11 +35,10 @@ public class NdkBuildTokenizerTest {
 
     private void checkStringEquals(String target, String expected) throws IOException {
         String result = checkString(target);
-        if (!result.equals(expected)) {
-            throw new RuntimeException(String.format("Expected %s but got %s", expected, result));
+        if (!result.equals(expected + "\n")) {
+            throw new RuntimeException(String.format("Expected '%s' but got '%s'", expected, result));
         }
     }
-
 
     @Test
     public void checkMacro() throws IOException {
@@ -213,32 +52,33 @@ public class NdkBuildTokenizerTest {
 
     @Test
     public void lineContinuation1() throws IOException {
-        checkStringEquals("a := b \\ \n a", "{id:a} {:=}{rv:b a}");
+        checkStringEquals("a := b \\ \n a", "{id:a} {:=} {id:b} {id:a}");
     }
 
     @Test
     public void lineContinuation2() throws IOException {
-        checkStringEquals("a := b \\\n a", "{id:a} {:=}{rv:b a}");
+        checkStringEquals("a := b \\\n a", "{id:a} {:=} {id:b} {id:a}");
     }
 
     @Test
     public void lineContinuation3() throws IOException {
-        checkStringEquals("a := b \\\na", "{id:a} {:=}{rv:b a}");
+        checkStringEquals("a := b \\\na", "{id:a} {:=} {id:b} {id:a}");
     }
 
     @Test
     public void lineContinuation4() throws IOException {
-        checkStringEquals("a:=b\\\nc\\\n\nd", "{id:a}{:=}{rv:b c}\n{id:d}");
+        checkStringEquals("a:=b\\\nc\\\n\nd", "{id:a}{:=}{id:b} {id:c} \n" +
+                "{id:d}");
     }
 
     @Test
     public void lineContinuation5() throws IOException {
-        checkStringEquals("a := b \\\n\ta", "{id:a} {:=}{rv:b a}");
+        checkStringEquals("a := b \\\n\ta", "{id:a} {:=} {id:b} {id:a}");
     }
 
     @Test
     public void lineContinuation6() throws IOException {
-        checkStringEquals("a := b\\\na\\", "{id:a} {:=}{rv:b a}");
+        checkStringEquals("a := b\\\na\\", "{id:a} {:=} {id:b} {id:a} ");
     }
 
     @Test
@@ -248,7 +88,7 @@ public class NdkBuildTokenizerTest {
 
     @Test
     public void equals() throws IOException {
-        checkStringEquals("a = b \\\n\ta", "{id:a} {=}{rv:b a}");
+        checkStringEquals("a = b \\\n\ta", "{id:a} {=}{id:b} {id:a}");
     }
 
     @Test
@@ -773,20 +613,172 @@ public class NdkBuildTokenizerTest {
         checkFile("support-files/android-ndk-android-mk/native-codec/jni/Android.mk");
         checkFile("support-files/android-ndk-android-mk/san-angeles/jni/Application.mk");
         checkFile("support-files/android-ndk-android-mk/san-angeles/jni/Android.mk");
-                
 
 
+    }
 
+    class StringPrintingTokenReceiver implements NdkBuildTokenReceiver {
+        public StringBuilder sb = new StringBuilder();
 
+        @Override
+        public void whitespace(String whitespace) {
+            sb.append(whitespace);
+        }
 
+        @Override
+        public void comment(String comment) {
+            sb.append(String.format("{c:%s}", comment));
+        }
 
+        @Override
+        public void include() {
+            sb.append("{include}");
+        }
 
+        @Override
+        public void define() {
+            sb.append("{define}");
+        }
 
+        @Override
+        public void endef() {
+            sb.append("{endef}");
+        }
 
+        @Override
+        public void identifier(String identifier) {
+            sb.append(String.format("{id:%s}", identifier));
+        }
 
+        @Override
+        public void number(String number) {
+            sb.append(String.format("{num:%s}", number));
+        }
 
+        @Override
+        public void at() {
+            sb.append("@");
+        }
 
+        @Override
+        public void equals() {
+            sb.append("{=}");
+        }
 
+        @Override
+        public void assign() {
+            sb.append("{:=}");
+        }
 
+        @Override
+        public void assignConditional() {
+            sb.append("{?=}");
+        }
+
+        @Override
+        public void append() {
+            sb.append("{+=}");
+        }
+
+        @Override
+        public void ifeq() {
+            sb.append("{ifeq}");
+        }
+
+        @Override
+        public void ifneq() {
+            sb.append("{ifneq}");
+        }
+
+        @Override
+        public void endif() {
+            sb.append("{endif}");
+        }
+
+        @Override
+        public void dollarOpenParen() {
+            sb.append("$(");
+        }
+
+        @Override
+        public void openParen() {
+            sb.append("(");
+        }
+
+        @Override
+        public void comma() {
+            sb.append("{,}");
+        }
+
+        @Override
+        public void doubleQuote() {
+            sb.append("{quot}");
+        }
+
+        @Override
+        public void expected(String s) {
+            sb.append(String.format("{ex:%s}", s));
+        }
+
+        @Override
+        public void closeParen() {
+            sb.append(")");
+        }
+
+        @Override
+        public void openBracket() {
+            sb.append("{[}");
+        }
+
+        @Override
+        public void closeBracket() {
+            sb.append("{]}");
+        }
+
+        @Override
+        public void lessThan() {
+            sb.append("{<}");
+        }
+
+        @Override
+        public void greaterThan() {
+            sb.append("{>}");
+        }
+
+        @Override
+        public void semicolon() {
+            sb.append("{;}");
+        }
+
+        @Override
+        public void pipe() {
+            sb.append("{|}");
+        }
+
+        @Override
+        public void star() {
+            sb.append("{*}");
+        }
+
+        @Override
+        public void plus() {
+            sb.append("{+}");
+        }
+
+        @Override
+        public void amp() {
+
+        }
+
+        @Override
+        public void ampAmp() {
+            sb.append("{&&}");
+        }
+
+        @Override
+        public void endline() {
+            sb.append("\n");
+
+        }
     }
 }
