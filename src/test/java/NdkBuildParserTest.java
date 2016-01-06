@@ -662,12 +662,13 @@ public class NdkBuildParserTest {
         checkFile("support-files/android-ndk-android-mk/san-angeles/jni/Android.mk");
     }
 
-    /*
+
     @Test
     public void assignMacro() throws FileNotFoundException {
         expectParsed("TARGET_C_INCLUDES := \\\n" +
-                "    $(SYSROOT_INC)/usr/include", "(:= a b)");
-    }*/
+                "    $(SYSROOT_INC)/usr/include",
+                "(:= TARGET_C_INCLUDES (concat (macro SYSROOT_INC) /usr/include))");
+    }
 
     @Test
     public void simpleAssign() throws FileNotFoundException {

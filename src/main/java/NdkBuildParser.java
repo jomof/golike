@@ -6,7 +6,7 @@ import java.util.List;
  * Created by jomof on 12/11/15.
  */
 public class NdkBuildParser {
-    private LinkedList<Node> stack_ = new LinkedList<Node>();
+    private LinkedList<LinkedList<Node>> stack_ =  new LinkedList<LinkedList<Node>>();
 
     private static boolean isBlockable(Node node) {
         return node.type == Type.TYPE_IDENTIFIER_EXPRESSION
@@ -19,6 +19,21 @@ public class NdkBuildParser {
         return node.type == Type.TYPE_IDENTIFIER_EXPRESSION
                 || node.type == Type.TYPE_MACRO_EXPRESSION
                 || node.type == Type.TYPE_CONCAT_EXPRESSION;
+    }
+
+    private static boolean isRvalue(Node node) {
+        return node.type == Type.TYPE_IDENTIFIER_EXPRESSION
+                || node.type == Type.TYPE_BLOCK_EXPRESSION
+                || node.type == Type.TYPE_MACRO_EXPRESSION
+                || node.type == Type.TYPE_CONCAT_EXPRESSION;
+    }
+
+    private static boolean isLvalue(Node node) {
+        return node.type == Type.TYPE_IDENTIFIER_EXPRESSION;
+    }
+
+    private static boolean isAssignmentOperator(Node node) {
+        return node.type == Type.TYPE_SIMPLE_ASSIGN_OPERATOR;
     }
 
     private static void blockAdd(List<Node> expressions, Node node) {
@@ -58,6 +73,7 @@ public class NdkBuildParser {
     }
 
     public List<Node> parse(String string) {
+        stack_.push(new LinkedList<Node>());
         NdkBuildTokenizer.apply(string, new NdkBuildTokenReceiver() {
             @Override
             public void amp() {
@@ -76,7 +92,7 @@ public class NdkBuildParser {
 
             @Override
             public void assign() {
-                stack_.push(new TokenNode(Type.TYPE_SIMPLE_ASSIGN_OPERATOR, ":="));
+                stack_.get(0).push(new TokenNode(Type.TYPE_SIMPLE_ASSIGN_OPERATOR, ":="));
             }
 
             @Override
@@ -96,8 +112,13 @@ public class NdkBuildParser {
 
             @Override
             public void closeParen() {
-                stack_.push(new TokenNode(Type.TYPE_CLOSE_PAREN, ")"));
+                stack_.get(0).push(new TokenNode(Type.TYPE_CLOSE_PAREN, ")"));
                 reduce();
+                if (stack_.get(0).size() != 1) {
+                    throw new RuntimeException();
+                }
+                stack_.get(1).push(stack_.get(0).pop());
+                stack_.pop();
             }
 
             @Override
@@ -117,7 +138,8 @@ public class NdkBuildParser {
 
             @Override
             public void dollarOpenParen() {
-                stack_.push(new TokenNode(Type.TYPE_DOLLAR_OPEN_PAREN, "$("));
+                stack_.push(new LinkedList<Node>());
+                stack_.get(0).push(new TokenNode(Type.TYPE_DOLLAR_OPEN_PAREN, "$("));
 
             }
 
@@ -128,13 +150,13 @@ public class NdkBuildParser {
 
             @Override
             public void endef() {
-                stack_.push(new TokenNode(Type.TYPE_ENDEF_KEYWORD, "endef"));
+                stack_.get(0).push(new TokenNode(Type.TYPE_ENDEF_KEYWORD, "endef"));
 
             }
 
             @Override
             public void endif() {
-                stack_.push(new TokenNode(Type.TYPE_ENDIF_KEYWORD, "endif"));
+                stack_.get(0).push(new TokenNode(Type.TYPE_ENDIF_KEYWORD, "endif"));
             }
 
             @Override
@@ -159,12 +181,12 @@ public class NdkBuildParser {
 
             @Override
             public void identifier(String identifier) {
-                stack_.push(new IdentifierExpression(identifier));
+                stack_.get(0).push(new IdentifierExpression(identifier));
             }
 
             @Override
             public void ifdef() {
-                stack_.push(new TokenNode(Type.TYPE_IFDEF_KEYWORD, "ifdef"));
+                stack_.get(0).push(new TokenNode(Type.TYPE_IFDEF_KEYWORD, "ifdef"));
             }
 
             @Override
@@ -224,57 +246,61 @@ public class NdkBuildParser {
 
             @Override
             public void whitespace(String whitespace) {
-                stack_.push(new TokenNode(Type.TYPE_WHITESPACE, null));
+                stack_.get(0).push(new TokenNode(Type.TYPE_WHITESPACE, null));
             }
         });
 
         reduce();
-        return stack_;
+        if (stack_.get(0).size() > 1) {
+            throw new RuntimeException(); // Unclosed?
+        }
+        return stack_.pop();
     }
 
     private Node popIgnoreWhitespaceSave(LinkedList<Node> save) {
-        Node result = stack_.pop();
+        Node result = stack_.get(0).pop();
         save.push(result);
         if (result.type == Type.TYPE_WHITESPACE) {
-            result = stack_.pop();
+            result = stack_.get(0).pop();
             save.push(result);
         }
         return result;
     }
 
     private Node popSave(LinkedList<Node> save) {
-        Node result = stack_.pop();
+        Node result = stack_.get(0).pop();
         save.push(result);
         return result;
     }
 
     private void pushSave(Node node, LinkedList<Node> save) {
-        stack_.push(node);
+        stack_.get(0).push(node);
         save.clear();
     }
 
     private void reduce() {
-        if (stack_.size() <= 1) {
+        if (stack_.get(0).size() <= 1) {
             return;
         }
 
         reduceBlocks();
         reduceConcats();
+        reduceAssignmentExpressions();
         reduceTokens();
 
     }
 
     private void reduceBlocks() {
-        if (stack_.size() == 0) {
+        if (stack_.get(0).size() == 0) {
             return;
         }
         LinkedList<Node> save = new LinkedList<Node>();
 
         try {
             Node node = popIgnoreWhitespaceSave(save);
-            if (isBlockable(node) && stack_.size() > 0) {
+            if (isBlockable(node) && stack_.get(0).size() > 0) {
                 Node node2 = popSave(save);
-                if (node2.type == Type.TYPE_WHITESPACE && stack_.size() > 0) {
+                if (node2.type == Type.TYPE_WHITESPACE && stack_.get(0).size() > 0) {
                     Node node3 = popSave(save);
                     if (isBlockable(node3)) {
                         pushSave(blockify(node3, node), save);
@@ -285,20 +311,20 @@ public class NdkBuildParser {
 
         } finally {
             for (Node node : save) {
-                stack_.push(node);
+                stack_.get(0).push(node);
             }
             save.clear();
         }
     }
 
     private void reduceConcats() {
-        if (stack_.size() == 0) {
+        if (stack_.get(0).size() == 0) {
             return;
         }
         LinkedList<Node> save = new LinkedList<Node>();
         try {
             Node node = popIgnoreWhitespaceSave(save);
-            if (isConcatable(node) && stack_.size() > 0) {
+            if (isConcatable(node) && stack_.get(0).size() > 0) {
                 Node node2 = popSave(save);
                 if (isConcatable(node2)) {
                     pushSave(concatify(node2, node), save);
@@ -308,11 +334,36 @@ public class NdkBuildParser {
 
         } finally {
             for (Node node : save) {
-                stack_.push(node);
+                stack_.get(0).push(node);
             }
             save.clear();
         }
+    }
 
+    private void reduceAssignmentExpressions() {
+        if (stack_.get(0).size() < 3) {
+            return;
+        }
+        LinkedList<Node> save = new LinkedList<Node>();
+        try {
+            Node node = popIgnoreWhitespaceSave(save);
+            if (isRvalue(node) && stack_.get(0).size() > 0) {
+                Node node2 = popIgnoreWhitespaceSave(save);
+                if (isAssignmentOperator(node2)) {
+                    Node node3 = popIgnoreWhitespaceSave(save);
+                    if (isLvalue(node3)) {
+                        pushSave(new AssignmentExpression((IdentifierExpression) node3, node), save);
+                        reduce();
+                    }
+                }
+            }
+
+        } finally {
+            for (Node node : save) {
+                stack_.get(0).push(node);
+            }
+            save.clear();
+        }
     }
 
     private void reduceTokens() {
@@ -327,6 +378,7 @@ public class NdkBuildParser {
                     switch (node3.type) {
                         case TYPE_DOLLAR_OPEN_PAREN: {
                             pushSave(new MacroExpression(node2), save);
+                            reduce();
                             return;
                         }
                         default:
@@ -345,7 +397,7 @@ public class NdkBuildParser {
                     return;
                 }
                 case TYPE_BLOCK_EXPRESSION: {
-                    if (stack_.size() == 0) {
+                    if (stack_.get(0).size() == 0) {
                         return;
                     }
                     Node node2 = popIgnoreWhitespaceSave(save);
@@ -398,7 +450,7 @@ public class NdkBuildParser {
             }
         } finally {
             for (Node node : save) {
-                stack_.push(node);
+                stack_.get(0).push(node);
             }
         }
 
