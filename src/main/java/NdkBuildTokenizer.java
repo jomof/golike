@@ -174,7 +174,6 @@ public class NdkBuildTokenizer {
     }
 
     private static int readEqualsOperator(String string, int index, NdkBuildTokenReceiver receiver) {
-        ++index;
         if (index == string.length()) {
             return -1;
         }

@@ -62,8 +62,20 @@ public class NdkBuildParserTest {
                 return;
             }
             case TYPE_SIMPLE_ASSIGN_EXPRESSION: {
-                sb.append("(:= ");
                 NdkBuildParser.AssignmentExpression expr = (NdkBuildParser.AssignmentExpression) node;
+                switch(expr.operator) {
+                    case TYPE_EQUALS_OPERATOR:
+                        sb.append("(= ");
+                        break;
+                    case TYPE_SIMPLE_ASSIGN_OPERATOR:
+                        sb.append("(:= ");
+                        break;
+                    case TYPE_APPEND_ASSIGN_OPERATOR:
+                        sb.append("(+= ");
+                        break;
+                    default:
+                        throw new RuntimeException(expr.operator.toString());
+                }
                 treeStringBuilder(expr.left, sb);
                 sb.append(" ");
                 treeStringBuilder(expr.right, sb);
@@ -98,6 +110,37 @@ public class NdkBuildParserTest {
             sb.append("\n");
         }
         sb.setLength(sb.length() - 1);
+    }
+
+    @Test
+    public void appendOperator() throws FileNotFoundException {
+        expectParsed("TARGET_LDFLAGS += \\\n" +
+                        "    -no-canonical-prefixes",
+                "(+= TARGET_LDFLAGS -no-canonical-prefixes)");
+    }
+
+    @Test
+    public void assignMacro() throws FileNotFoundException {
+        expectParsed("TARGET_C_INCLUDES := \\\n" +
+                "    $(SYSROOT_INC)/usr/include",
+                "(:= TARGET_C_INCLUDES (concat (macro SYSROOT_INC) /usr/include))");
+    }
+
+    @Test
+    public void broken() throws IOException {
+        checkFile("support-files/android-ndk-r10e/toolchains/aarch64-linux-android-clang3.5/config.mk");
+    }
+
+    @Test
+    public void buildup1() throws FileNotFoundException {
+        expectParsed("$(eval _f1 := $(call _f2))",
+                "(macro [eval (:= _f1 (macro [call _f2]))])");
+    }
+
+    @Test
+    public void buildup2() throws FileNotFoundException {
+        expectParsed("a = $(eval _f1 := $(call _f1))",
+                "(= a (macro [eval (:= _f1 (macro [call _f1]))]))");
     }
 
     @Test
@@ -156,6 +199,29 @@ public class NdkBuildParserTest {
     }
 
     @Test
+    public void equals() throws FileNotFoundException {
+        expectParsed("b = c\n", "(= b c)");
+    }
+
+    @Test
+    public void equals2() throws FileNotFoundException {
+        expectParsed("a := b = c\n",
+                "(:= a (= b c))");
+    }
+
+    @Test
+    public void equals3() throws FileNotFoundException {
+        expectParsed("a := b=c\n",
+                "(:= a (= b c))");
+    }
+
+    @Test
+    public void equals4() throws FileNotFoundException {
+        expectParsed("a := b=c d=e\n",
+                "(:= a (= b c))");
+    }
+
+    @Test
     public void ifdef() throws FileNotFoundException {
         expectParsed(
                 "ifdef a\n" +
@@ -190,7 +256,7 @@ public class NdkBuildParserTest {
                 "endef", "(ifdef a (ifdef b [c d]))");
     }
 
-    //    @Test
+    @Test
     public void simpleApply() throws IOException {
         checkFile("support-files/android-ndk-r10e/toolchains/aarch64-linux-android-clang3.5/config.mk");
         checkFile("support-files/android-ndk-r10e/toolchains/aarch64-linux-android-clang3.5/setup.mk");
@@ -662,16 +728,9 @@ public class NdkBuildParserTest {
         checkFile("support-files/android-ndk-android-mk/san-angeles/jni/Android.mk");
     }
 
-
-    @Test
-    public void assignMacro() throws FileNotFoundException {
-        expectParsed("TARGET_C_INCLUDES := \\\n" +
-                "    $(SYSROOT_INC)/usr/include",
-                "(:= TARGET_C_INCLUDES (concat (macro SYSROOT_INC) /usr/include))");
-    }
-
     @Test
     public void simpleAssign() throws FileNotFoundException {
         expectParsed("a:=b", "(:= a b)");
     }
+
 }

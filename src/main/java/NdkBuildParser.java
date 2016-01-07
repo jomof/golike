@@ -12,7 +12,8 @@ public class NdkBuildParser {
         return node.type == Type.TYPE_IDENTIFIER_EXPRESSION
                 || node.type == Type.TYPE_BLOCK_EXPRESSION
                 || node.type == Type.TYPE_MACRO_EXPRESSION
-                || node.type == Type.TYPE_CONCAT_EXPRESSION;
+                || node.type == Type.TYPE_CONCAT_EXPRESSION
+                || node.type == Type.TYPE_SIMPLE_ASSIGN_EXPRESSION;
     }
 
     private static boolean isConcatable(Node node) {
@@ -23,6 +24,7 @@ public class NdkBuildParser {
 
     private static boolean isRvalue(Node node) {
         return node.type == Type.TYPE_IDENTIFIER_EXPRESSION
+                || node.type == Type.TYPE_SIMPLE_ASSIGN_EXPRESSION
                 || node.type == Type.TYPE_BLOCK_EXPRESSION
                 || node.type == Type.TYPE_MACRO_EXPRESSION
                 || node.type == Type.TYPE_CONCAT_EXPRESSION;
@@ -32,8 +34,11 @@ public class NdkBuildParser {
         return node.type == Type.TYPE_IDENTIFIER_EXPRESSION;
     }
 
-    private static boolean isAssignmentOperator(Node node) {
-        return node.type == Type.TYPE_SIMPLE_ASSIGN_OPERATOR;
+    private static boolean isAssignmentOperator(Type type) {
+        return type == Type.TYPE_SIMPLE_ASSIGN_OPERATOR
+                || type == Type.TYPE_APPEND_ASSIGN_OPERATOR
+                || type == Type.TYPE_EQUALS_OPERATOR;
+
     }
 
     private static void blockAdd(List<Node> expressions, Node node) {
@@ -74,6 +79,7 @@ public class NdkBuildParser {
 
     public List<Node> parse(String string) {
         stack_.push(new LinkedList<Node>());
+
         NdkBuildTokenizer.apply(string, new NdkBuildTokenReceiver() {
             @Override
             public void amp() {
@@ -87,7 +93,7 @@ public class NdkBuildParser {
 
             @Override
             public void append() {
-
+                stack_.get(0).push(new TokenNode(Type.TYPE_APPEND_ASSIGN_OPERATOR, "+="));
             }
 
             @Override
@@ -112,6 +118,7 @@ public class NdkBuildParser {
 
             @Override
             public void closeParen() {
+                reduce();
                 stack_.get(0).push(new TokenNode(Type.TYPE_CLOSE_PAREN, ")"));
                 reduce();
                 if (stack_.get(0).size() != 1) {
@@ -166,7 +173,7 @@ public class NdkBuildParser {
 
             @Override
             public void equals() {
-
+                stack_.get(0).push(new TokenNode(Type.TYPE_EQUALS_OPERATOR, "="));
             }
 
             @Override
@@ -251,16 +258,22 @@ public class NdkBuildParser {
         });
 
         reduce();
-        if (stack_.get(0).size() > 1) {
+        if (stack_.size() > 1) {
             throw new RuntimeException(); // Unclosed?
         }
         return stack_.pop();
     }
 
     private Node popIgnoreWhitespaceSave(LinkedList<Node> save) {
+        if (stack_.get(0).size() == 0) {
+            return null;
+        }
         Node result = stack_.get(0).pop();
         save.push(result);
         if (result.type == Type.TYPE_WHITESPACE) {
+            if (stack_.get(0).size() == 0) {
+                return null;
+            }
             result = stack_.get(0).pop();
             save.push(result);
         }
@@ -288,6 +301,32 @@ public class NdkBuildParser {
         reduceAssignmentExpressions();
         reduceTokens();
 
+    }
+
+    private void reduceAssignmentExpressions() {
+        if (stack_.get(0).size() < 3) {
+            return;
+        }
+        LinkedList<Node> save = new LinkedList<Node>();
+        try {
+            Node node = popIgnoreWhitespaceSave(save);
+            if (isRvalue(node) && stack_.get(0).size() > 0) {
+                Node node2 = popIgnoreWhitespaceSave(save);
+                if (isAssignmentOperator(node2.type)) {
+                    Node node3 = popIgnoreWhitespaceSave(save);
+                    if (isLvalue(node3)) {
+                        pushSave(new AssignmentExpression(node2.type, (IdentifierExpression) node3, node), save);
+                        reduce();
+                    }
+                }
+            }
+
+        } finally {
+            for (Node node : save) {
+                stack_.get(0).push(node);
+            }
+            save.clear();
+        }
     }
 
     private void reduceBlocks() {
@@ -340,39 +379,12 @@ public class NdkBuildParser {
         }
     }
 
-    private void reduceAssignmentExpressions() {
-        if (stack_.get(0).size() < 3) {
-            return;
-        }
-        LinkedList<Node> save = new LinkedList<Node>();
-        try {
-            Node node = popIgnoreWhitespaceSave(save);
-            if (isRvalue(node) && stack_.get(0).size() > 0) {
-                Node node2 = popIgnoreWhitespaceSave(save);
-                if (isAssignmentOperator(node2)) {
-                    Node node3 = popIgnoreWhitespaceSave(save);
-                    if (isLvalue(node3)) {
-                        pushSave(new AssignmentExpression((IdentifierExpression) node3, node), save);
-                        reduce();
-                    }
-                }
-            }
-
-        } finally {
-            for (Node node : save) {
-                stack_.get(0).push(node);
-            }
-            save.clear();
-        }
-    }
-
     private void reduceTokens() {
         LinkedList<Node> save = new LinkedList<Node>();
         try {
             Node node = popIgnoreWhitespaceSave(save);
             switch (node.type) {
                 case TYPE_CLOSE_PAREN: {
-                    reduce(); // Reduce whatever is in the paren
                     Node node2 = popIgnoreWhitespaceSave(save);
                     Node node3 = popIgnoreWhitespaceSave(save);
                     switch (node3.type) {
@@ -397,23 +409,12 @@ public class NdkBuildParser {
                     return;
                 }
                 case TYPE_BLOCK_EXPRESSION: {
-                    if (stack_.get(0).size() == 0) {
+                    Node node2 = popIgnoreWhitespaceSave(save);
+                    if (node2 == null) {
                         return;
                     }
-                    Node node2 = popIgnoreWhitespaceSave(save);
 
                     switch (node2.type) {
-                        case TYPE_SIMPLE_ASSIGN_OPERATOR:
-                            Node node3 = popIgnoreWhitespaceSave(save);
-                            switch (node3.type) {
-                                case TYPE_IDENTIFIER_EXPRESSION:
-                                    pushSave(new AssignmentExpression((IdentifierExpression) node3, node), save);
-                                    reduce();
-                                    return;
-                                default:
-                                    throw new RuntimeException(node2.type.toString());
-                            }
-
                         case TYPE_DOLLAR_OPEN_PAREN:
                         case TYPE_IFDEF_FRAGMENT:
                             return;
@@ -424,18 +425,11 @@ public class NdkBuildParser {
                 case TYPE_IDENTIFIER_EXPRESSION: {
                     IdentifierExpression identifier = (IdentifierExpression) node;
                     Node node2 = popIgnoreWhitespaceSave(save);
+                    if (node2 == null) {
+                        return;
+                    }
 
                     switch (node2.type) {
-                        case TYPE_SIMPLE_ASSIGN_OPERATOR:
-                            Node node3 = popIgnoreWhitespaceSave(save);
-                            switch (node3.type) {
-                                case TYPE_IDENTIFIER_EXPRESSION:
-                                    pushSave(new AssignmentExpression((IdentifierExpression) node3, node), save);
-                                    reduce();
-                                    return;
-                                default:
-                                    throw new RuntimeException(node2.type.toString());
-                            }
                         case TYPE_IFDEF_KEYWORD: {
                             pushSave(new IfDefFragment(identifier.identifier), save);
                             reduce();
@@ -466,6 +460,8 @@ public class NdkBuildParser {
         TYPE_ENDEF_KEYWORD,
         TYPE_ENDIF_KEYWORD,
         TYPE_SIMPLE_ASSIGN_OPERATOR,
+        TYPE_APPEND_ASSIGN_OPERATOR,
+        TYPE_EQUALS_OPERATOR,
         TYPE_SIMPLE_ASSIGN_EXPRESSION,
         TYPE_BLOCK_EXPRESSION,
         TYPE_IDENTIFIER_EXPRESSION,
@@ -547,11 +543,16 @@ public class NdkBuildParser {
     }
 
     static class AssignmentExpression extends Node {
+        final Type operator;
         final IdentifierExpression left;
         final Node right;
 
-        AssignmentExpression(IdentifierExpression left, Node right) {
+        AssignmentExpression(Type operator, IdentifierExpression left, Node right) {
             super(Type.TYPE_SIMPLE_ASSIGN_EXPRESSION);
+            if (!isAssignmentOperator(operator)) {
+                throw new RuntimeException(operator.toString());
+            }
+            this.operator = operator;
             this.left = left;
             this.right = right;
         }

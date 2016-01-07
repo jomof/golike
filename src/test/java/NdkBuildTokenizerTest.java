@@ -84,7 +84,7 @@ public class NdkBuildTokenizerTest {
 
     @Test
     public void equals() throws IOException {
-        checkStringEquals("a = b \\\n\ta", "{id:a} {=}{id:b} {id:a}");
+        checkStringEquals("a = b \\\n\ta", "{id:a} {=} {id:b} {id:a}");
     }
 
     @Test
@@ -141,6 +141,11 @@ public class NdkBuildTokenizerTest {
     @Test
     public void quote() throws IOException {
         checkStringEquals("@echo \"yo dog\"", "@{id:echo} {quot}{id:yo} {id:dog}{quot}");
+    }
+
+    @Test
+    public void equals1() throws IOException {
+        checkStringEquals("a := b=c", "{id:a} {:=} {id:b}{=}{id:c}");
     }
 
     @Test
