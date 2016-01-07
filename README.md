@@ -1,1 +1,1 @@
-# Gnu Make build file parser
+# Shell Command Line Parser

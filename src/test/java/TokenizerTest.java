@@ -42,12 +42,12 @@ public class TokenizerTest {
 
     @Test
     public void at() throws IOException {
-        checkStringEquals("@echo yo dog", "@{id:echo} {id:yo} {id:dog}");
+        checkStringEquals("@echo yo dog", "{command:@echo} {arg:yo} {arg:dog}");
     }
 
     @Test
     public void bracket() throws IOException {
-        checkStringEquals("@echo \"[yo] dog\"", "@{id:echo} {quot}{[}{id:yo}{]} {id:dog}{quot}");
+        checkStringEquals("@echo \"[yo] dog\"", "{command:@echo} {arg:\"[yo] dog\"}");
     }
 
     @Test
@@ -56,99 +56,74 @@ public class TokenizerTest {
     }
 
     @Test
-    public void callParameterWithColon() throws IOException {
-        checkStringEquals("$(call __ndk_info,WARNING: hello!)", "$({id:call} {id:__ndk_info}{,}{id:WARNING}{ex::} {id:hello}{ex:!})");
-    }
-
-    @Test
-    public void callParameterWithTick() throws IOException {
-        checkStringEquals("$(call __ndk_info, can't)", "$({id:call} {id:__ndk_info}{,} {id:can}{ex:'}{id:t})");
-    }
-
-    @Test
-    public void checkMacro() throws IOException {
-        checkStringEquals("$(dog)", "$({id:dog})");
-    }
-
-    @Test
     public void checkNumber() throws IOException {
-        checkStringEquals("1", "{num:1}");
+        checkStringEquals("x 1", "{command:x} {arg:1}");
     }
 
     @Test
-    public void define() throws IOException {
-        checkStringEquals("define my_thing\nBOB\\\nTOM\nendef", "{define} {id:my_thing}\n" +
-                "{id:BOB} {id:TOM}\n" +
-                "{endef}");
+    public void twoCommands() throws IOException {
+        checkStringEquals("ls\nmkdir", "{command:ls}\n" +
+                "{command:mkdir}");
     }
+
 
     @Test
     public void equals() throws IOException {
-        checkStringEquals("a = b \\\n\ta", "{id:a} {=} {id:b} {id:a}");
-    }
-
-    @Test
-    public void filterWithPercent() throws IOException {
-        checkStringEquals("ifeq ($(filter %a,$(B),)", "{ifeq} ($({id:filter} {id:%a}{,}$({id:B}){,})");
+        checkStringEquals("a = b \\\n\ta", "{command:a} {arg:=} {arg:b} {arg:a}");
     }
 
     @Test
     public void lineContinuation1() throws IOException {
-        checkStringEquals("a := b \\ \n a", "{id:a} {:=} {id:b} {id:a}");
+        checkStringEquals("a := b \\ \n a", "{command:a} {arg::=} {arg:b} {arg:a}");
     }
 
     @Test
     public void lineContinuation2() throws IOException {
-        checkStringEquals("a := b \\\n a", "{id:a} {:=} {id:b} {id:a}");
+        checkStringEquals("a := b \\\n a", "{command:a} {arg::=} {arg:b} {arg:a}");
     }
 
     @Test
     public void lineContinuation3() throws IOException {
-        checkStringEquals("a := b \\\na", "{id:a} {:=} {id:b} {id:a}");
+        checkStringEquals("a := b \\\na", "{command:a} {arg::=} {arg:b} {arg:a}");
     }
 
     @Test
     public void lineContinuation4() throws IOException {
-        checkStringEquals("a:=b\\\nc\\\n\nd", "{id:a}{:=}{id:b} {id:c} \n" +
-                "{id:d}");
+        checkStringEquals("a:=b\\\nc\\\n\nd", "{command:a:=b} {arg:c} \n" +
+                "{command:d}");
     }
 
     @Test
     public void lineContinuation5() throws IOException {
-        checkStringEquals("a := b \\\n\ta", "{id:a} {:=} {id:b} {id:a}");
+        checkStringEquals("a := b \\\n\ta", "{command:a} {arg::=} {arg:b} {arg:a}");
     }
 
     @Test
     public void lineContinuation6() throws IOException {
-        checkStringEquals("a := b\\\na\\", "{id:a} {:=} {id:b} {id:a} ");
-    }
-
-    @Test
-    public void macroWithForwardSlash() throws IOException {
-        checkStringEquals("$(call import-module, a/b)", "$({id:call} {id:import-module}{,} {id:a/b})");
+        checkStringEquals("a := b\\\na\\", "{command:a} {arg::=} {arg:b} {arg:a} ");
     }
 
     @Test
     public void nestedParen() throws IOException {
-        checkStringEquals("ifeq ($(A),$(B))", "{ifeq} ($({id:A}){,}$({id:B}))");
+        checkStringEquals("ifeq ($(A),$(B))", "{command:ifeq} {arg:($(A),$(B))}");
     }
 
     @Test
     public void plusInIdentifier() throws IOException {
-        checkStringEquals("include $(dir $(LOCAL_PATH)/++stl)", "{include} $({id:dir} $({id:LOCAL_PATH}){id:/++stl})");
+        checkStringEquals("include $(dir $(LOCAL_PATH)/++stl)", "{command:include} {arg:$(dir} {arg:$(LOCAL_PATH)/++stl)}");
     }
 
     @Test
     public void quote() throws IOException {
-        checkStringEquals("@echo \"yo dog\"", "@{id:echo} {quot}{id:yo} {id:dog}{quot}");
+        checkStringEquals("@echo \"yo dog\"", "{command:@echo} {arg:\"yo dog\"}");
     }
 
     @Test
     public void equals1() throws IOException {
-        checkStringEquals("a := b=c", "{id:a} {:=} {id:b}{=}{id:c}");
+        checkStringEquals("a := b=c", "{command:a} {arg::=} {arg:b=c}");
     }
 
-    @Test
+   // @Test
     public void simpleApply() throws IOException {
         checkFile("support-files/android-ndk-r10e/toolchains/aarch64-linux-android-clang3.5/config.mk");
         checkFile("support-files/android-ndk-r10e/toolchains/aarch64-linux-android-clang3.5/setup.mk");
@@ -618,57 +593,10 @@ public class TokenizerTest {
         checkFile("support-files/android-ndk-android-mk/native-codec/jni/Android.mk");
         checkFile("support-files/android-ndk-android-mk/san-angeles/jni/Application.mk");
         checkFile("support-files/android-ndk-android-mk/san-angeles/jni/Android.mk");
-
-
     }
 
     static class StringPrintingTokenReceiver implements TokenReceiver {
         public StringBuilder sb = new StringBuilder();
-
-        @Override
-        public void amp() {
-
-        }
-
-        @Override
-        public void ampAmp() {
-            sb.append("{&&}");
-        }
-
-        @Override
-        public void append() {
-            sb.append("{+=}");
-        }
-
-        @Override
-        public void assign() {
-            sb.append("{:=}");
-        }
-
-        @Override
-        public void assignConditional() {
-            sb.append("{?=}");
-        }
-
-        @Override
-        public void at() {
-            sb.append("@");
-        }
-
-        @Override
-        public void closeBracket() {
-            sb.append("{]}");
-        }
-
-        @Override
-        public void closeParen() {
-            sb.append(")");
-        }
-
-        @Override
-        public void comma() {
-            sb.append("{,}");
-        }
 
         @Override
         public void comment(String comment) {
@@ -676,114 +604,18 @@ public class TokenizerTest {
         }
 
         @Override
-        public void define() {
-            sb.append("{define}");
-        }
-
-        @Override
-        public void dollarOpenParen() {
-            sb.append("$(");
-        }
-
-        @Override
-        public void doubleQuote() {
-            sb.append("{quot}");
-        }
-
-        @Override
-        public void endef() {
-            sb.append("{endef}");
-        }
-
-        @Override
-        public void endif() {
-            sb.append("{endif}");
-        }
-
-        @Override
         public void endline() {
             sb.append("\n");
-
         }
 
         @Override
-        public void equals() {
-            sb.append("{=}");
+        public void command(String identifier) {
+            sb.append(String.format("{command:%s}", identifier));
         }
 
         @Override
-        public void expected(String s) {
-            sb.append(String.format("{ex:%s}", s));
-        }
-
-        @Override
-        public void greaterThan() {
-            sb.append("{>}");
-        }
-
-        @Override
-        public void identifier(String identifier) {
-            sb.append(String.format("{id:%s}", identifier));
-        }
-
-        @Override
-        public void ifdef() {
-            sb.append("{ifeq}");
-        }
-
-        @Override
-        public void ifeq() {
-            sb.append("{ifeq}");
-        }
-
-        @Override
-        public void ifneq() {
-            sb.append("{ifneq}");
-        }
-
-        @Override
-        public void include() {
-            sb.append("{include}");
-        }
-
-        @Override
-        public void lessThan() {
-            sb.append("{<}");
-        }
-
-        @Override
-        public void number(String number) {
-            sb.append(String.format("{num:%s}", number));
-        }
-
-        @Override
-        public void openBracket() {
-            sb.append("{[}");
-        }
-
-        @Override
-        public void openParen() {
-            sb.append("(");
-        }
-
-        @Override
-        public void pipe() {
-            sb.append("{|}");
-        }
-
-        @Override
-        public void plus() {
-            sb.append("{+}");
-        }
-
-        @Override
-        public void semicolon() {
-            sb.append("{;}");
-        }
-
-        @Override
-        public void star() {
-            sb.append("{*}");
+        public void argument(String identifier) {
+            sb.append(String.format("{arg:%s}", identifier));
         }
 
         @Override
