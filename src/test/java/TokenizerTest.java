@@ -8,13 +8,13 @@ import java.nio.file.Paths;
 /**
  * Created by jomof on 1/4/16.
  */
-public class NdkBuildTokenizerTest {
+public class TokenizerTest {
     private static void checkFile(String file) throws IOException {
         byte[] encoded = Files.readAllBytes(Paths.get(file));
         StringPrintingTokenReceiver receiver = new StringPrintingTokenReceiver();
         receiver.sb.append(String.format("-----%s\n", file));
         try {
-            NdkBuildTokenizer.apply(
+            Tokenizer.apply(
                     new String(encoded, StandardCharsets.UTF_8), receiver);
         } finally {
             System.out.printf("%s", receiver.sb.toString());
@@ -24,7 +24,7 @@ public class NdkBuildTokenizerTest {
     private static String checkString(String string) throws IOException {
         StringPrintingTokenReceiver receiver = new StringPrintingTokenReceiver();
         try {
-            NdkBuildTokenizer.apply(
+            Tokenizer.apply(
                     string,
                     receiver);
         } catch (Throwable e) {
@@ -622,7 +622,7 @@ public class NdkBuildTokenizerTest {
 
     }
 
-    static class StringPrintingTokenReceiver implements NdkBuildTokenReceiver {
+    static class StringPrintingTokenReceiver implements TokenReceiver {
         public StringBuilder sb = new StringBuilder();
 
         @Override

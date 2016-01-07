@@ -1,7 +1,7 @@
 /**
  * Created by jomof on 1/5/16.
  */
-class NdkBuildCharUtil {
+class CharUtil {
     static boolean isWhitespace(char c) {
         return c == ' ' || c == '\t';
     }

@@ -1,7 +1,7 @@
 /**
  * Created by jomof on 1/4/16.
  */
-public interface NdkBuildTokenReceiver {
+interface TokenReceiver {
     void amp(); // &
 
     void ampAmp(); // &&

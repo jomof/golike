@@ -31,13 +31,11 @@
  * @see     Character#UNASSIGNED
  * @see     Character#UPPERCASE_LETTER
  */
-public class NdkBuildTokenizer {
-
-
-    private static int readWhitespace(String string, int index, NdkBuildTokenReceiver receiver) {
+class Tokenizer {
+    private static int readWhitespace(String string, int index, TokenReceiver receiver) {
         int start = index;
         while(index < string.length()
-                && NdkBuildCharUtil.isWhitespace(string.charAt(index))) {
+                && CharUtil.isWhitespace(string.charAt(index))) {
             ++index;
         }
 
@@ -49,7 +47,7 @@ public class NdkBuildTokenizer {
         return index;
     }
 
-    private static int readComment(String string, int index, NdkBuildTokenReceiver receiver) {
+    private static int readComment(String string, int index, TokenReceiver receiver) {
         int start = index;
         while(index < string.length()
                 && Character.getType(string.charAt(index)) != Character.CONTROL) {
@@ -64,22 +62,22 @@ public class NdkBuildTokenizer {
         return index;
     }
 
-    private static int readNumber(String string, int index, NdkBuildTokenReceiver receiver) {
+    private static int readNumber(String string, int index, TokenReceiver receiver) {
         int start = index;
         ++index;
         while (index < string.length()
-                && NdkBuildCharUtil.isNumber(string.charAt(index))) {
+                && CharUtil.isNumber(string.charAt(index))) {
             ++index;
         }
         receiver.number(string.substring(start, index));
         return index;
     }
 
-    private static int readIdentifier(String string, int index, NdkBuildTokenReceiver receiver) {
+    private static int readIdentifier(String string, int index, TokenReceiver receiver) {
         int start = index;
         ++index;
         while(index < string.length()
-                && NdkBuildCharUtil.isIdentifier(string.charAt(index))) {
+                && CharUtil.isIdentifier(string.charAt(index))) {
             ++index;
         }
 
@@ -130,14 +128,14 @@ public class NdkBuildTokenizer {
     private static int readEverythingElse(String string, int index) {
         int start = index;
         while(index < string.length()
-                && !NdkBuildCharUtil.isWhitespace(string.charAt(index))) {
+                && !CharUtil.isWhitespace(string.charAt(index))) {
             ++index;
         }
 
         throw new RuntimeException(String.format("{b:%s}", string.substring(start, index)));
     }
 
-    private static int readRValue_(String string, int index, NdkBuildTokenReceiver receiver) {
+    private static int readRValue_(String string, int index, TokenReceiver receiver) {
         int start = index;
         StringBuilder sb = new StringBuilder();
         while(index < string.length()
@@ -155,7 +153,7 @@ public class NdkBuildTokenizer {
         return index;
     }
 
-    private static int readColonOperator(String string, int index, NdkBuildTokenReceiver receiver) {
+    private static int readColonOperator(String string, int index, TokenReceiver receiver) {
         ++index;
         if (index == string.length()) {
             return -1;
@@ -173,7 +171,7 @@ public class NdkBuildTokenizer {
         return index;
     }
 
-    private static int readEqualsOperator(String string, int index, NdkBuildTokenReceiver receiver) {
+    private static int readEqualsOperator(String string, int index, TokenReceiver receiver) {
         if (index == string.length()) {
             return -1;
         }
@@ -186,7 +184,7 @@ public class NdkBuildTokenizer {
         return index;
     }
 
-    private static int readPlusOperator(String string, int index, NdkBuildTokenReceiver receiver) {
+    private static int readPlusOperator(String string, int index, TokenReceiver receiver) {
         ++index;
         if (index == string.length()) {
             return -1;
@@ -205,7 +203,7 @@ public class NdkBuildTokenizer {
         return index;
     }
 
-    private static int readDollarOperator(String string, int index, NdkBuildTokenReceiver receiver) {
+    private static int readDollarOperator(String string, int index, TokenReceiver receiver) {
         ++index;
         if (index == string.length()) {
             return -1;
@@ -220,7 +218,7 @@ public class NdkBuildTokenizer {
         return index;
     }
 
-    private static int readAmpOperator(String string, int index, NdkBuildTokenReceiver receiver) {
+    private static int readAmpOperator(String string, int index, TokenReceiver receiver) {
         ++index;
         if (index == string.length()) {
             return -1;
@@ -235,7 +233,7 @@ public class NdkBuildTokenizer {
         return index;
     }
 
-    private static int readQuestionOperator(String string, int index, NdkBuildTokenReceiver receiver) {
+    private static int readQuestionOperator(String string, int index, TokenReceiver receiver) {
         ++index;
         if (index == string.length()) {
             return -1;
@@ -249,7 +247,7 @@ public class NdkBuildTokenizer {
         return index;
     }
 
-    private static int readToken(String string, int index, NdkBuildTokenReceiver receiver) {
+    private static int readToken(String string, int index, TokenReceiver receiver) {
         if (string.length() == index) {
             return -1;
         }
@@ -330,24 +328,24 @@ public class NdkBuildTokenizer {
                 return index;
         }
 
-        if (NdkBuildCharUtil.isWhitespace(string.charAt(index))) {
+        if (CharUtil.isWhitespace(string.charAt(index))) {
             return readWhitespace(string, index, receiver);
         }
 
-        if (NdkBuildCharUtil.isIdentifierStart(string.charAt(index))) {
+        if (CharUtil.isIdentifierStart(string.charAt(index))) {
             return readIdentifier(string, index, receiver);
         }
 
-        if (NdkBuildCharUtil.isNumber(string.charAt(index))) {
+        if (CharUtil.isNumber(string.charAt(index))) {
             return readNumber(string, index, receiver);
         }
 
         return readEverythingElse(string, index);
     }
 
-    public static void apply(String string, NdkBuildTokenReceiver receiver) {
+    public static void apply(String string, TokenReceiver receiver) {
         int index = 0;
-        string = NdkBuildDecontinuizer.apply(string);
+        string = Decontinuizer.apply(string);
         while(index != -1 && index != string.length()) {
             index = readToken(string, index, receiver);
         }

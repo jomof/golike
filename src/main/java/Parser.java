@@ -5,7 +5,7 @@ import java.util.List;
 /**
  * Created by jomof on 12/11/15.
  */
-public class NdkBuildParser {
+class Parser {
     private LinkedList<LinkedList<Node>> stack_ =  new LinkedList<LinkedList<Node>>();
 
     private static boolean isBlockable(Node node) {
@@ -80,7 +80,7 @@ public class NdkBuildParser {
     public List<Node> parse(String string) {
         stack_.push(new LinkedList<Node>());
 
-        NdkBuildTokenizer.apply(string, new NdkBuildTokenReceiver() {
+        Tokenizer.apply(string, new TokenReceiver() {
             @Override
             public void amp() {
 

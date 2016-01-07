@@ -1,13 +1,13 @@
 /**
  * Created by jomof on 1/5/16.
  */
-class NdkBuildDecontinuizer {
+class Decontinuizer {
 
     private static int eatPastLineFeed(String string, int index) {
         if (index == string.length()) {
             return index;
         }
-        while(NdkBuildCharUtil.isWhitespace(string.charAt(index))) index++;
+        while(CharUtil.isWhitespace(string.charAt(index))) index++;
         while(string.charAt(index) == '\r') index++;
         if (string.charAt(index) == '\n') {
             index++;
@@ -15,7 +15,7 @@ class NdkBuildDecontinuizer {
         if (index == string.length()) {
             return index - 1;
         }
-        while(NdkBuildCharUtil.isWhitespace(string.charAt(index))) index++;
+        while(CharUtil.isWhitespace(string.charAt(index))) index++;
         return index;
     }
 
