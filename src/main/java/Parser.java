@@ -62,12 +62,6 @@ class Parser {
         return result;
     }
 
-    private Node popSave(LinkedList<Node> save) {
-        Node result = stack_.get(0).pop();
-        save.push(result);
-        return result;
-    }
-
     private void pushSave(Node node, LinkedList<Node> save) {
         stack_.get(0).push(node);
         save.clear();

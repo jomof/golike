@@ -109,11 +109,6 @@ public class TokenizerTest {
     }
 
     @Test
-    public void plusInIdentifier() throws IOException {
-        checkStringEquals("include $(dir $(LOCAL_PATH)/++stl)", "{command:include} {arg:$(dir} {arg:$(LOCAL_PATH)/++stl)}");
-    }
-
-    @Test
     public void quote() throws IOException {
         checkStringEquals("@echo \"yo dog\"", "{command:@echo} {arg:\"yo dog\"}");
     }
