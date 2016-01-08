@@ -143,14 +143,14 @@ public class ClassifyCommandsTest {
         StringBuilder sb = new StringBuilder();
         for (ClassifyCommands.Command command : commands) {
             sb.append("[\n");
-            for (String output : command.outputs) {
-                sb.append(" out:");
-                sb.append(output);
-                sb.append("\n");
-            }
             for (String input : command.inputs) {
                 sb.append(" in:");
                 sb.append(input);
+                sb.append("\n");
+            }
+            for (String output : command.outputs) {
+                sb.append(" out:");
+                sb.append(output);
                 sb.append("\n");
             }
             sb.append("]\n");
