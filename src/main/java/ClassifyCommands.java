@@ -1,14 +1,14 @@
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import static Parser.Node;
-import static Parser.CommandExpression;
 
 /**
- * Created by jomof on 1/8/16.
+ * Find compiler commands (g++, gcc, clang) and extract inputs and outputs according to the command line rules of that
+ * tool
  */
 class ClassifyCommands {
 
-    class Command {
+    static class Command {
         final List<String> inputs;
         final List<String> outputs;
         Command(List<String> inputs, List<String> outputs) {
@@ -18,38 +18,62 @@ class ClassifyCommands {
     }
 
     interface CommandClassifier {
-        boolean isMatch(CommandExpression command);
-        Command createCommand(CommandExpression command);
+        boolean isMatch(Parser.CommandExpression command);
+        Command createCommand(Parser.CommandExpression command);
     }
 
-    class GccClassifier implements CommandClassifier {
+    static class GccClassifier implements CommandClassifier {
+        private static List<String> outputFlags = Arrays.asList("-o");
+        private static List<String> ignoreFlags = Arrays.asList("-F", "-I", "-MF", "-MQ", "-MT");
+
         @Override
-        public boolean isMatch(CommandExpression command) {
-            if (command.)
-            return false;
+        public boolean isMatch(Parser.CommandExpression command) {
+            return command.command.endsWith("gcc")
+                    || command.command.endsWith("g++");
         }
 
         @Override
-        public Command createCommand(CommandExpression command) {
-            return null;
+        public Command createCommand(Parser.CommandExpression command) {
+            List<String> inputs = new ArrayList<String>();
+            List<String> outputs = new ArrayList<String>();
+            String last = null;
+            for (Parser.ArgumentExpression arg : command.args) {
+                if (arg.arg.startsWith("-")) {
+                    last = arg.arg;
+                    continue;
+                }
+                if (outputFlags.contains(last)) {
+                    outputs.add(arg.arg);
+                    continue;
+                }
+                if (ignoreFlags.contains(last)) {
+                    continue;
+                }
+                inputs.add(arg.arg);
+
+            }
+            return new Command(inputs, outputs);
         }
     }
 
-    private static CommandClassifier classifiers[] = {};
+    private static CommandClassifier classifiers[] = {
+            new GccClassifier()
+    };
 
-    static void accept(List<Node> nodes) {
+    static List<Command> accept(List<Parser.Node> nodes) {
         List<Command> commands = new ArrayList<Command>();
 
-        for(Node node : nodes) {
+        for(Parser.Node node : nodes) {
             if (node.type != Parser.Type.TYPE_COMMAND_EXPRESSION) {
                 continue;
             }
-            CommandExpression expr = (CommandExpression) node
+            Parser.CommandExpression expr = (Parser.CommandExpression) node;
             for (CommandClassifier classifier : classifiers) {
-                if (classifier.isMatch(node)) {
-                    commands.add(classifier.createCommand(node));
+                if (classifier.isMatch(expr)) {
+                    commands.add(classifier.createCommand(expr));
                 }
             }
         }
+        return commands;
     }
 }
