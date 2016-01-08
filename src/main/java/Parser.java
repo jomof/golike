@@ -14,12 +14,8 @@ class Parser {
         Tokenizer.apply(string, new TokenReceiver() {
 
             @Override
-            public void comment(String comment) {
-            }
-
-            @Override
-            public void endline() {
-                reduce();
+            public void argument(String argument) {
+                stack_.get(0).push(new ArgumentExpression(argument));
             }
 
             @Override
@@ -28,8 +24,12 @@ class Parser {
             }
 
             @Override
-            public void argument(String argument) {
-                stack_.get(0).push(new ArgumentExpression(argument));
+            public void comment(String comment) {
+            }
+
+            @Override
+            public void endline() {
+                reduce();
             }
 
             @Override
@@ -90,7 +90,7 @@ class Parser {
                             CommandExpression command = (CommandExpression) node2;
                             List<ArgumentExpression> args = new ArrayList<ArgumentExpression>(command.args);
                             args.add(arg);
-                            pushSave(new CommandExpression(command.value, args), save);
+                            pushSave(new CommandExpression(command.command, args), save);
                             reduce();
                             break;
                     }
@@ -118,31 +118,32 @@ class Parser {
 
     static class WhitespaceNode extends Node {
         WhitespaceNode() {
-            super(Type.TYPE_WHITESPACE);;
+            super(Type.TYPE_WHITESPACE);
         }
     }
 
     static class ArgumentExpression extends Node {
-        final String value;
-        ArgumentExpression(String value) {
+        final String arg;
+
+        ArgumentExpression(String arg) {
             super(Type.TYPE_ARGUMENT_EXPRESSION);
-            this.value = value;
+            this.arg = arg;
         }
     }
 
     static class CommandExpression extends Node {
-        final String value;
+        final String command;
         final List<ArgumentExpression> args;
 
-        CommandExpression(String value) {
+        CommandExpression(String command) {
             super(Type.TYPE_COMMAND_EXPRESSION);
-            this.value = value;
+            this.command = command;
             this.args = new ArrayList<ArgumentExpression>();
         }
 
         CommandExpression(String value, List<ArgumentExpression> args) {
             super(Type.TYPE_COMMAND_EXPRESSION);
-            this.value = value;
+            this.command = value;
             this.args = args;
         }
     }

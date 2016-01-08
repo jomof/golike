@@ -38,12 +38,12 @@ public class ParserTest {
             case TYPE_COMMAND_EXPRESSION: {
                 Parser.CommandExpression command = (Parser.CommandExpression) node;
                 sb.append("(command ");
-                sb.append(command.value);
+                sb.append(command.command);
                 if (command.args.size() > 0) {
                     sb.append(" [");
                     StringBuilder sub = new StringBuilder();
                     for (Parser.ArgumentExpression arg : command.args) {
-                        sub.append(arg.value);
+                        sub.append(arg.arg);
                         sub.append(" ");
                     }
                     sub.setLength(sub.length() - 1);
@@ -69,31 +69,15 @@ public class ParserTest {
     }
 
     @Test
-    public void simpleCommand() throws FileNotFoundException {
-        expectParsed("ls", "(command ls)");
-    }
-
-    @Test
-    public void twoCommands() throws FileNotFoundException {
-        expectParsed("ls\nmkdir", "(command mkdir)\n" +
-                "(command ls)");
-    }
-
-    @Test
-    public void simpleCommandWithParameter() throws FileNotFoundException {
-        expectParsed("ls -rf", "(command ls [-rf])");
-    }
-
-    @Test
     public void ndkBuildExample() throws FileNotFoundException {
         expectParsed("/usr/local/google/home/jomof/bin/android-ndk-r10e/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc" +
-                " -MMD -MP -MF ./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o.d" +
-                " -fpic -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes" +
-                " -O2 -g -DNDEBUG -fomit-frame-pointer -fstrict-aliasing -funswitch-loops" +
-                " -finline-limit=300 -O0 -UNDEBUG -fno-omit-frame-pointer -fno-strict-aliasing" +
-                " -Ijni -DANDROID  -Wa,--noexecstack -Wformat -Werror=format-security    " +
-                "-I/usr/local/google/home/jomof/bin/android-ndk-r10e/platforms/android-21/arch-arm64/usr/include " +
-                "-c  jni/hello-jni.c -o ./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o\n",
+                        " -MMD -MP -MF ./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o.d" +
+                        " -fpic -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes" +
+                        " -O2 -g -DNDEBUG -fomit-frame-pointer -fstrict-aliasing -funswitch-loops" +
+                        " -finline-limit=300 -O0 -UNDEBUG -fno-omit-frame-pointer -fno-strict-aliasing" +
+                        " -Ijni -DANDROID  -Wa,--noexecstack -Wformat -Werror=format-security    " +
+                        "-I/usr/local/google/home/jomof/bin/android-ndk-r10e/platforms/android-21/arch-arm64/usr/include " +
+                        "-c  jni/hello-jni.c -o ./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o\n",
                 "(command /usr/local/google/home/jomof/bin/android-ndk-r10e/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc " +
                         "[-MMD -MP -MF ./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o.d " +
                         "-fpic -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes " +
@@ -102,6 +86,22 @@ public class ParserTest {
                         "-Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security " +
                         "-I/usr/local/google/home/jomof/bin/android-ndk-r10e/platforms/android-21/arch-arm64/usr/include " +
                         "-c jni/hello-jni.c -o ./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o])");
+    }
+
+    @Test
+    public void simpleCommand() throws FileNotFoundException {
+        expectParsed("ls", "(command ls)");
+    }
+
+    @Test
+    public void simpleCommandWithParameter() throws FileNotFoundException {
+        expectParsed("ls -rf", "(command ls [-rf])");
+    }
+
+    @Test
+    public void twoCommands() throws FileNotFoundException {
+        expectParsed("ls\nmkdir", "(command mkdir)\n" +
+                "(command ls)");
     }
 
 
