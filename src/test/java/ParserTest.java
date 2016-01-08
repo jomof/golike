@@ -100,8 +100,8 @@ public class ParserTest {
 
     @Test
     public void twoCommands() throws FileNotFoundException {
-        expectParsed("ls\nmkdir", "(command mkdir)\n" +
-                "(command ls)");
+        expectParsed("ls\nmkdir", "(command ls)\n" +
+                "(command mkdir)");
     }
 
 

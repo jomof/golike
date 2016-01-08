@@ -43,7 +43,12 @@ class Parser {
         if (stack_.size() > 1) {
             throw new RuntimeException(); // Unclosed?
         }
-        return stack_.pop();
+
+        List<Node> reversed = new ArrayList<Node>();
+        for (Node node : stack_.pop()) {
+            reversed.add(0, node);
+        }
+        return reversed;
     }
 
     private Node popIgnoreWhitespaceSave(LinkedList<Node> save) {
