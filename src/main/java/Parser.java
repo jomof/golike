@@ -151,5 +151,22 @@ class Parser {
             this.command = value;
             this.args = args;
         }
+
+        @Override
+        public int hashCode() {
+            return toString().hashCode();
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(command);
+            sb.append(" ");
+            for (ArgumentExpression arg : args) {
+                sb.append(arg.arg);
+                sb.append(" ");
+            }
+            return sb.toString();
+        }
     }
 }

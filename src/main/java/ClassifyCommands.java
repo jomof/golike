@@ -8,32 +8,62 @@ import java.util.List;
  */
 class ClassifyCommands {
 
-    static class Command {
-        final List<String> inputs;
-        final List<String> outputs;
-        Command(List<String> inputs, List<String> outputs) {
-            this.inputs = inputs;
-            this.outputs = outputs;
+    private static CommandClassifier classifiers[] = {
+            new GccClassifier(),
+            new GccArClassifier()
+    };
+
+    static List<Command> accept(List<Parser.Node> nodes) {
+        List<Command> commands = new ArrayList<Command>();
+
+        for (Parser.Node node : nodes) {
+            if (node.type != Parser.Type.TYPE_COMMAND_EXPRESSION) {
+                continue;
+            }
+            Parser.CommandExpression expr = (Parser.CommandExpression) node;
+            for (CommandClassifier classifier : classifiers) {
+                if (classifier.isMatch(expr)) {
+                    commands.add(classifier.createCommand(expr));
+                }
+            }
         }
+        return commands;
     }
 
     interface CommandClassifier {
-        boolean isMatch(Parser.CommandExpression command);
         Command createCommand(Parser.CommandExpression command);
+
+        boolean isMatch(Parser.CommandExpression command);
+    }
+
+    static class Command {
+        final Parser.CommandExpression command;
+        final List<String> inputs;
+        final List<String> outputs;
+
+        Command(Parser.CommandExpression command, List<String> inputs, List<String> outputs) {
+            this.command = command;
+            this.inputs = inputs;
+            this.outputs = outputs;
+        }
+
+        @Override
+        public int hashCode() {
+            return command.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return command.toString();
+        }
     }
 
     static class GccArClassifier implements CommandClassifier {
 
         @Override
-        public boolean isMatch(Parser.CommandExpression command) {
-            return command.command.endsWith("gcc-ar");
-        }
-
-        @Override
         public Command createCommand(Parser.CommandExpression command) {
             List<String> inputs = new ArrayList<String>();
             List<String> outputs = new ArrayList<String>();
-            String last = null;
             int count = 0;
             for (Parser.ArgumentExpression arg : command.args) {
                 if (arg.arg.startsWith("-")) {
@@ -51,20 +81,18 @@ class ClassifyCommands {
                 inputs.add(arg.arg);
 
             }
-            return new Command(inputs, outputs);
+            return new Command(command, inputs, outputs);
+        }
+
+        @Override
+        public boolean isMatch(Parser.CommandExpression command) {
+            return command.command.endsWith("gcc-ar");
         }
     }
 
     static class GccClassifier implements CommandClassifier {
         private static List<String> outputFlags = Arrays.asList("-o");
         private static List<String> ignoreFlags = Arrays.asList("-F", "-I", "-MF", "-MQ", "-MT");
-
-        @Override
-        public boolean isMatch(Parser.CommandExpression command) {
-            return command.command.endsWith("gcc")
-                    || command.command.endsWith("gcc-ar")
-                    || command.command.endsWith("g++");
-        }
 
         @Override
         public Command createCommand(Parser.CommandExpression command) {
@@ -86,29 +114,13 @@ class ClassifyCommands {
                 inputs.add(arg.arg);
 
             }
-            return new Command(inputs, outputs);
+            return new Command(command, inputs, outputs);
         }
-    }
 
-    private static CommandClassifier classifiers[] = {
-            new GccClassifier(),
-            new GccArClassifier()
-    };
-
-    static List<Command> accept(List<Parser.Node> nodes) {
-        List<Command> commands = new ArrayList<Command>();
-
-        for(Parser.Node node : nodes) {
-            if (node.type != Parser.Type.TYPE_COMMAND_EXPRESSION) {
-                continue;
-            }
-            Parser.CommandExpression expr = (Parser.CommandExpression) node;
-            for (CommandClassifier classifier : classifiers) {
-                if (classifier.isMatch(expr)) {
-                    commands.add(classifier.createCommand(expr));
-                }
-            }
+        @Override
+        public boolean isMatch(Parser.CommandExpression command) {
+            return command.command.endsWith("gcc")
+                    || command.command.endsWith("g++");
         }
-        return commands;
     }
 }
