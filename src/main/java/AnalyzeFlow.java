@@ -6,16 +6,16 @@ import java.util.*;
 public class AnalyzeFlow {
 
     // Map key = output, map value = inputs
-    static Map<File, Set<File>> accept(List<ClassifyCommands.Command> commands) {
+    static Map<String, Set<File>> accept(List<ClassifyCommands.Command> commands) {
 
         // Gather output -> inputs map
-        Map<File, Set<File>> outToIn = new HashMap<File, Set<File>>();
+        Map<String, Set<File>> outToIn = new HashMap<String, Set<File>>();
         for (ClassifyCommands.Command command : commands) {
             for (String output : command.outputs) {
                 Set<File> inputs = outToIn.get(output);
                 if (inputs == null) {
                     inputs = new HashSet<File>();
-                    outToIn.put(new File(output, command), inputs);
+                    outToIn.put(output, inputs);
                 }
                 for (String input : command.inputs) {
                     inputs.add(new File(input, command));
@@ -24,18 +24,18 @@ public class AnalyzeFlow {
         }
 
         // Reduce to just external inputs
-        Set<File> externalOutputs = new HashSet<File>();
+        Set<String> externalOutputs = new HashSet<String>();
         externalOutputs.addAll(outToIn.keySet());
 
         for (ClassifyCommands.Command command : commands) {
-            for (String input : command.inputs) {
-                externalOutputs.remove(new File(input, command));
+            for (final String input : command.inputs) {
+                externalOutputs.remove(input);
             }
         }
 
         // Follow outputs to terminal leafs
-        Map<File, Set<File>> io = new HashMap<File, Set<File>>();
-        for (File output : externalOutputs) {
+        Map<String, Set<File>> io = new HashMap<String, Set<File>>();
+        for (String output : externalOutputs) {
             Set<File> leafInputs = new HashSet<File>();
             follow(output, outToIn, leafInputs);
             io.put(output, leafInputs);
@@ -44,11 +44,11 @@ public class AnalyzeFlow {
         return io;
     }
 
-    private static void follow(File output, Map<File, Set<File>> outToIn, Set<File> leafInputs) {
+    private static void follow(String output, Map<String, Set<File>> outToIn, Set<File> leafInputs) {
         Set<File> inputs = outToIn.get(output);
         for (File input : inputs) {
-            if (outToIn.containsKey(input)) {
-                follow(input, outToIn, leafInputs);
+            if (outToIn.containsKey(input.filename)) {
+                follow(input.filename, outToIn, leafInputs);
                 continue;
             }
             leafInputs.add(input);
@@ -79,7 +79,7 @@ public class AnalyzeFlow {
 
         @Override
         public String toString() {
-            return String.format("%s <- %s", filename, command);
+            return String.format("%s -> %s", filename, command);
         }
     }
 }

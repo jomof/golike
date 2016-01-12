@@ -13,9 +13,9 @@ public class AnalyzeFlowTest {
         Parser parser = new Parser();
         List<Parser.Node> nodes = parser.parse(string);
         List<ClassifyCommands.Command> commands = ClassifyCommands.accept(nodes);
-        Map<AnalyzeFlow.File, Set<AnalyzeFlow.File>> io = AnalyzeFlow.accept(commands);
+        Map<String, Set<AnalyzeFlow.File>> io = AnalyzeFlow.accept(commands);
         StringBuilder sb = new StringBuilder();
-        for (AnalyzeFlow.File output : io.keySet()) {
+        for (String output : io.keySet()) {
             sb.append(output);
             sb.append(":\n");
             for (AnalyzeFlow.File input : io.get(output)) {
@@ -27,6 +27,37 @@ public class AnalyzeFlowTest {
         if (!expected.equals(sb.toString())) {
             throw new RuntimeException(String.format("Expected '%s' but got '%s'", expected, sb));
         }
+    }
+
+    private void checkFlow(String string, int expectedHash) {
+        Parser parser = new Parser();
+        List<Parser.Node> nodes = parser.parse(string);
+        List<ClassifyCommands.Command> commands = ClassifyCommands.accept(nodes);
+        Map<String, Set<AnalyzeFlow.File>> io = AnalyzeFlow.accept(commands);
+        StringBuilder sb = new StringBuilder();
+        for (String output : io.keySet()) {
+            sb.append(output);
+            sb.append(":\n");
+            for (AnalyzeFlow.File input : io.get(output)) {
+                sb.append("  ");
+                sb.append(input);
+                sb.append("\n");
+            }
+        }
+        if (string.hashCode() != expectedHash) {
+            throw new RuntimeException(String.format("Expected hash '%s' but got '%s' for string '%s'", expectedHash, string.hashCode(), string));
+        }
+    }
+
+    @Test
+    public void doubleTarget() throws FileNotFoundException {
+        checkFlow("g++ a.c -o x/a.o\n" +
+                "g++ x/a.o -o x/a.so\n" +
+                "g++ a.c -o y/a.o\n" +
+                "g++ y/a.o -o y/a.so", "y/a.so:\n" +
+                "  a.c -> g++ a.c -o y/a.o \n" +
+                "x/a.so:\n" +
+                "  a.c -> g++ a.c -o x/a.o \n");
     }
 
     @Test
@@ -148,19 +179,19 @@ public class AnalyzeFlowTest {
                         "install -p ./obj/local/mips/libhello-jni.so ./libs/mips/libhello-jni.so\n" +
                         "/ndk/toolchains/mipsel-linux-android-4.8/prebuilt/linux-x86_64/bin/mipsel-linux-android-strip --strip-unneeded  ./libs/mips/libhello-jni.so",
                 "./obj/local/mips/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c\n" +
+                        "  jni/hello-jni.c -> /ndk/toolchains/mipsel-linux-android-4.8/prebuilt/linux-x86_64/bin/mipsel-linux-android-gcc -MMD -MP -MF ./obj/local/mips/objs-debug/hello-jni/hello-jni.o.d -fpic -fno-strict-aliasing -finline-functions -ffunction-sections -funwind-tables -fmessage-length=0 -fno-inline-functions-called-once -fgcse-after-reload -frerun-cse-after-loop -frename-registers -no-canonical-prefixes -O0 -g -fno-omit-frame-pointer -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-9/arch-mips/usr/include -c jni/hello-jni.c -o ./obj/local/mips/objs-debug/hello-jni/hello-jni.o \n" +
                         "./obj/local/arm64-v8a/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c\n" +
+                        "  jni/hello-jni.c -> /ndk/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc -MMD -MP -MF ./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o.d -fpic -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -O2 -g -DNDEBUG -fomit-frame-pointer -fstrict-aliasing -funswitch-loops -finline-limit=300 -O0 -UNDEBUG -fno-omit-frame-pointer -fno-strict-aliasing -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-21/arch-arm64/usr/include -c jni/hello-jni.c -o ./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o \n" +
                         "./obj/local/x86/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c\n" +
+                        "  jni/hello-jni.c -> /ndk/toolchains/x86-4.8/prebuilt/linux-x86_64/bin/i686-linux-android-gcc -MMD -MP -MF ./obj/local/x86/objs-debug/hello-jni/hello-jni.o.d -ffunction-sections -funwind-tables -no-canonical-prefixes -fstack-protector -O2 -g -DNDEBUG -fomit-frame-pointer -fstrict-aliasing -funswitch-loops -finline-limit=300 -O0 -UNDEBUG -fno-omit-frame-pointer -fno-strict-aliasing -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-9/arch-x86/usr/include -c jni/hello-jni.c -o ./obj/local/x86/objs-debug/hello-jni/hello-jni.o \n" +
                         "./obj/local/mips64/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c\n" +
+                        "  jni/hello-jni.c -> /ndk/toolchains/mips64el-linux-android-4.9/prebuilt/linux-x86_64/bin/mips64el-linux-android-gcc -MMD -MP -MF ./obj/local/mips64/objs-debug/hello-jni/hello-jni.o.d -fpic -fno-strict-aliasing -finline-functions -ffunction-sections -funwind-tables -fmessage-length=0 -fno-inline-functions-called-once -fgcse-after-reload -frerun-cse-after-loop -frename-registers -no-canonical-prefixes -O0 -g -fno-omit-frame-pointer -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-21/arch-mips64/usr/include -c jni/hello-jni.c -o ./obj/local/mips64/objs-debug/hello-jni/hello-jni.o \n" +
                         "./obj/local/armeabi/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c\n" +
+                        "  jni/hello-jni.c -> /ndk/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/bin/arm-linux-androideabi-gcc -MMD -MP -MF ./obj/local/armeabi/objs-debug/hello-jni/hello-jni.o.d -fpic -ffunction-sections -funwind-tables -fstack-protector -no-canonical-prefixes -march=armv5te -mtune=xscale -msoft-float -mthumb -Os -g -DNDEBUG -fomit-frame-pointer -fno-strict-aliasing -finline-limit=64 -O0 -UNDEBUG -marm -fno-omit-frame-pointer -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-3/arch-arm/usr/include -c jni/hello-jni.c -o ./obj/local/armeabi/objs-debug/hello-jni/hello-jni.o \n" +
                         "./obj/local/x86_64/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c\n" +
+                        "  jni/hello-jni.c -> /ndk/toolchains/x86_64-4.9/prebuilt/linux-x86_64/bin/x86_64-linux-android-gcc -MMD -MP -MF ./obj/local/x86_64/objs-debug/hello-jni/hello-jni.o.d -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -O2 -g -DNDEBUG -fomit-frame-pointer -fstrict-aliasing -funswitch-loops -finline-limit=300 -O0 -UNDEBUG -fno-omit-frame-pointer -fno-strict-aliasing -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-21/arch-x86_64/usr/include -c jni/hello-jni.c -o ./obj/local/x86_64/objs-debug/hello-jni/hello-jni.o \n" +
                         "./obj/local/armeabi-v7a/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c\n");
+                        "  jni/hello-jni.c -> /ndk/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/bin/arm-linux-androideabi-gcc -MMD -MP -MF ./obj/local/armeabi-v7a/objs-debug/hello-jni/hello-jni.o.d -fpic -ffunction-sections -funwind-tables -fstack-protector -no-canonical-prefixes -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp -mthumb -Os -g -DNDEBUG -fomit-frame-pointer -fno-strict-aliasing -finline-limit=64 -O0 -UNDEBUG -marm -fno-omit-frame-pointer -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-3/arch-arm/usr/include -c jni/hello-jni.c -o ./obj/local/armeabi-v7a/objs-debug/hello-jni/hello-jni.o \n");
 
     }
 
@@ -379,117 +410,13 @@ public class AnalyzeFlowTest {
                         "install -p ./obj/local/mips/libTeapotNativeActivity.so ./libs/mips/libTeapotNativeActivity.so\n" +
                         "/ndk/toolchains/mipsel-linux-android-4.8/prebuilt/linux-x86_64/bin/mipsel-linux-android-strip --strip-unneeded  ./libs/mips/libTeapotNativeActivity.so");
 
-        checkFlow(sb.toString(), "./obj/local/x86/libTeapotNativeActivity.so:\n" +
-                "  /ndk/sources/android/ndk_helper/shader.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/interpolator.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/JNIHelper.cpp\n" +
-                "  /ndk/sources/android/native_app_glue/android_native_app_glue.c\n" +
-                "  /ndk/sources/cxx-stl/stlport/libs/x86/libstlport_static.a\n" +
-                "  /ndk/sources/android/ndk_helper/vecmath.cpp\n" +
-                "  /ndk/sources/android/cpufeatures/cpu-features.c\n" +
-                "  /ndk/sources/android/ndk_helper/perfMonitor.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gestureDetector.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gl3stub.c\n" +
-                "  jni/TeapotRenderer.cpp\n" +
-                "  jni/TeapotNativeActivity.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/tapCamera.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/GLContext.cpp\n" +
-                "./obj/local/mips/libTeapotNativeActivity.so:\n" +
-                "  /ndk/sources/android/ndk_helper/shader.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/interpolator.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/JNIHelper.cpp\n" +
-                "  /ndk/sources/android/native_app_glue/android_native_app_glue.c\n" +
-                "  /ndk/sources/android/ndk_helper/vecmath.cpp\n" +
-                "  /ndk/sources/android/cpufeatures/cpu-features.c\n" +
-                "  /ndk/sources/android/ndk_helper/perfMonitor.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gestureDetector.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gl3stub.c\n" +
-                "  jni/TeapotRenderer.cpp\n" +
-                "  jni/TeapotNativeActivity.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/tapCamera.cpp\n" +
-                "  /ndk/sources/cxx-stl/stlport/libs/mips/libstlport_static.a\n" +
-                "  /ndk/sources/android/ndk_helper/GLContext.cpp\n" +
-                "./obj/local/armeabi-v7a/libTeapotNativeActivity.so:\n" +
-                "  /ndk/sources/android/ndk_helper/shader.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/interpolator.cpp\n" +
-                "  /ndk/sources/cxx-stl/stlport/libs/armeabi-v7a/thumb/libstlport_static.a\n" +
-                "  /ndk/sources/android/ndk_helper/JNIHelper.cpp\n" +
-                "  /ndk/sources/android/native_app_glue/android_native_app_glue.c\n" +
-                "  /ndk/sources/android/ndk_helper/vecmath.cpp\n" +
-                "  /ndk/sources/android/cpufeatures/cpu-features.c\n" +
-                "  /ndk/sources/android/ndk_helper/perfMonitor.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gestureDetector.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gl3stub.c\n" +
-                "  jni/TeapotRenderer.cpp\n" +
-                "  jni/TeapotNativeActivity.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/tapCamera.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/GLContext.cpp\n" +
-                "./obj/local/x86_64/libTeapotNativeActivity.so:\n" +
-                "  /ndk/sources/android/ndk_helper/shader.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/interpolator.cpp\n" +
-                "  /ndk/sources/android/native_app_glue/android_native_app_glue.c\n" +
-                "  /ndk/sources/android/ndk_helper/JNIHelper.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/vecmath.cpp\n" +
-                "  /ndk/sources/cxx-stl/stlport/libs/x86_64/libstlport_static.a\n" +
-                "  /ndk/sources/android/cpufeatures/cpu-features.c\n" +
-                "  /ndk/sources/android/ndk_helper/perfMonitor.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gestureDetector.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gl3stub.c\n" +
-                "  jni/TeapotRenderer.cpp\n" +
-                "  jni/TeapotNativeActivity.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/tapCamera.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/GLContext.cpp\n" +
-                "./obj/local/arm64-v8a/libTeapotNativeActivity.so:\n" +
-                "  /ndk/sources/android/ndk_helper/shader.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/interpolator.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/JNIHelper.cpp\n" +
-                "  /ndk/sources/android/native_app_glue/android_native_app_glue.c\n" +
-                "  /ndk/sources/cxx-stl/stlport/libs/arm64-v8a/libstlport_static.a\n" +
-                "  /ndk/sources/android/ndk_helper/vecmath.cpp\n" +
-                "  /ndk/sources/android/cpufeatures/cpu-features.c\n" +
-                "  /ndk/sources/android/ndk_helper/perfMonitor.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gestureDetector.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gl3stub.c\n" +
-                "  jni/TeapotRenderer.cpp\n" +
-                "  jni/TeapotNativeActivity.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/tapCamera.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/GLContext.cpp\n" +
-                "./obj/local/mips64/libTeapotNativeActivity.so:\n" +
-                "  /ndk/sources/android/ndk_helper/shader.cpp\n" +
-                "  /ndk/sources/cxx-stl/stlport/libs/mips64/libstlport_static.a\n" +
-                "  /ndk/sources/android/ndk_helper/interpolator.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/JNIHelper.cpp\n" +
-                "  /ndk/sources/android/native_app_glue/android_native_app_glue.c\n" +
-                "  /ndk/sources/android/ndk_helper/vecmath.cpp\n" +
-                "  /ndk/sources/android/cpufeatures/cpu-features.c\n" +
-                "  /ndk/sources/android/ndk_helper/perfMonitor.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gestureDetector.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gl3stub.c\n" +
-                "  jni/TeapotRenderer.cpp\n" +
-                "  jni/TeapotNativeActivity.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/tapCamera.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/GLContext.cpp\n" +
-                "./obj/local/armeabi/libTeapotNativeActivity.so:\n" +
-                "  /ndk/sources/android/ndk_helper/shader.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/interpolator.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/JNIHelper.cpp\n" +
-                "  /ndk/sources/android/native_app_glue/android_native_app_glue.c\n" +
-                "  /ndk/sources/cxx-stl/stlport/libs/armeabi/thumb/libstlport_static.a\n" +
-                "  /ndk/sources/android/ndk_helper/vecmath.cpp\n" +
-                "  /ndk/sources/android/cpufeatures/cpu-features.c\n" +
-                "  /ndk/sources/android/ndk_helper/perfMonitor.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gestureDetector.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/gl3stub.c\n" +
-                "  jni/TeapotRenderer.cpp\n" +
-                "  jni/TeapotNativeActivity.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/tapCamera.cpp\n" +
-                "  /ndk/sources/android/ndk_helper/GLContext.cpp\n");
+        checkFlow(sb.toString(), -729675016);
     }
 
     @Test
     public void simple() throws FileNotFoundException {
         checkFlow("g++ a.c -o a.o\n" +
                 "g++ a.o -o a.so", "a.so:\n" +
-                "  a.c\n");
+                "  a.c -> g++ a.c -o a.o \n");
     }
 }
