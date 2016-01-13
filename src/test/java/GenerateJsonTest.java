@@ -6,46 +6,31 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Created by jomof on 1/8/16.
+ * Created by jomof on 1/12/16.
  */
-public class AnalyzeFlowTest {
+public class GenerateJsonTest {
     private void checkFlow(String string, String expected) {
         Parser parser = new Parser();
         List<Parser.Node> nodes = parser.parse(string);
         List<ClassifyCommands.Command> commands = ClassifyCommands.accept(nodes);
         Map<String, Set<AnalyzeFlow.CommandInput>> io = AnalyzeFlow.accept(commands);
-        StringBuilder sb = new StringBuilder();
-        for (String output : io.keySet()) {
-            sb.append(output);
-            sb.append(":\n");
-            for (AnalyzeFlow.CommandInput input : io.get(output)) {
-                sb.append("  ");
-                sb.append(input);
-                sb.append("\n");
-            }
-        }
-        if (!expected.equals(sb.toString())) {
-            throw new RuntimeException(String.format("Expected '%s' but got '%s'", expected, sb));
+        String json = GenerateJson.accept("/projects/MyProject/jni/Android.mk", io);
+
+        if (!expected.equals(json.toString())) {
+            throw new RuntimeException(String.format("Expected '%s' but got '%s'", expected, json));
         }
     }
 
-    private void checkFlow(String string, int expectedHash) {
+    private void checkFlow(String string, int expectedHashCode) {
         Parser parser = new Parser();
         List<Parser.Node> nodes = parser.parse(string);
         List<ClassifyCommands.Command> commands = ClassifyCommands.accept(nodes);
         Map<String, Set<AnalyzeFlow.CommandInput>> io = AnalyzeFlow.accept(commands);
-        StringBuilder sb = new StringBuilder();
-        for (String output : io.keySet()) {
-            sb.append(output);
-            sb.append(":\n");
-            for (AnalyzeFlow.CommandInput input : io.get(output)) {
-                sb.append("  ");
-                sb.append(input);
-                sb.append("\n");
-            }
-        }
-        if (string.hashCode() != expectedHash) {
-            throw new RuntimeException(String.format("Expected hash '%s' but got '%s' for string '%s'", expectedHash, string.hashCode(), string));
+        String json = GenerateJson.accept("/projects/MyProject/jni/Android.mk", io);
+
+        if (expectedHashCode != json.toString().hashCode()) {
+            throw new RuntimeException(
+                    String.format("Expected hashCode '%s' but got '%s '%s'", expectedHashCode, json.hashCode(), json));
         }
     }
 
@@ -54,10 +39,38 @@ public class AnalyzeFlowTest {
         checkFlow("g++ a.c -o x/a.o\n" +
                 "g++ x/a.o -o x/a.so\n" +
                 "g++ a.c -o y/a.o\n" +
-                "g++ y/a.o -o y/a.so", "y/a.so:\n" +
-                "  a.c -> g++ a.c -o y/a.o \n" +
-                "x/a.so:\n" +
-                "  a.c -> g++ a.c -o x/a.o \n");
+                "g++ y/a.o -o y/a.so", "{\n" +
+                "    buildFiles : [\"/projects/MyProject/jni/Android.mk\"],\n" +
+                "    libraries : [\n" +
+                "        \"y/a\" : {\n" +
+                "            executable : \"ndk-build\",\n" +
+                "            args : [\"y/a.so\"],\n" +
+                "            toolchain : \"toolchain\",\n" +
+                "            output : \"y/a.so\",\n" +
+                "            files : [\n" +
+                "               { src : \"a.c\",\n" +
+                "                 flags : [ \"a.c\", \"-o\", \"y/a.o\"]\n" +
+                "               }\n" +
+                "            ]\n" +
+                "        },\n" +
+                "        \"x/a\" : {\n" +
+                "            executable : \"ndk-build\",\n" +
+                "            args : [\"x/a.so\"],\n" +
+                "            toolchain : \"toolchain\",\n" +
+                "            output : \"x/a.so\",\n" +
+                "            files : [\n" +
+                "               { src : \"a.c\",\n" +
+                "                 flags : [ \"a.c\", \"-o\", \"x/a.o\"]\n" +
+                "               }\n" +
+                "            ]\n" +
+                "        }\n" +
+                "    ],\n" +
+                "    toolchains : [\n" +
+                "        toolchain : {\n" +
+                "            cCompilerExecutable : \"g++\"\n" +
+                "        }\n" +
+                "    ]\n" +
+                "}\n");
     }
 
     @Test
@@ -178,20 +191,111 @@ public class AnalyzeFlowTest {
                         "echo [mips] \"Install        \": \"libhello-jni.so => libs/mips/libhello-jni.so\"\n" +
                         "install -p ./obj/local/mips/libhello-jni.so ./libs/mips/libhello-jni.so\n" +
                         "/ndk/toolchains/mipsel-linux-android-4.8/prebuilt/linux-x86_64/bin/mipsel-linux-android-strip --strip-unneeded  ./libs/mips/libhello-jni.so",
-                "./obj/local/mips/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c -> /ndk/toolchains/mipsel-linux-android-4.8/prebuilt/linux-x86_64/bin/mipsel-linux-android-gcc -MMD -MP -MF ./obj/local/mips/objs-debug/hello-jni/hello-jni.o.d -fpic -fno-strict-aliasing -finline-functions -ffunction-sections -funwind-tables -fmessage-length=0 -fno-inline-functions-called-once -fgcse-after-reload -frerun-cse-after-loop -frename-registers -no-canonical-prefixes -O0 -g -fno-omit-frame-pointer -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-9/arch-mips/usr/include -c jni/hello-jni.c -o ./obj/local/mips/objs-debug/hello-jni/hello-jni.o \n" +
-                        "./obj/local/arm64-v8a/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c -> /ndk/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc -MMD -MP -MF ./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o.d -fpic -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -O2 -g -DNDEBUG -fomit-frame-pointer -fstrict-aliasing -funswitch-loops -finline-limit=300 -O0 -UNDEBUG -fno-omit-frame-pointer -fno-strict-aliasing -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-21/arch-arm64/usr/include -c jni/hello-jni.c -o ./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o \n" +
-                        "./obj/local/x86/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c -> /ndk/toolchains/x86-4.8/prebuilt/linux-x86_64/bin/i686-linux-android-gcc -MMD -MP -MF ./obj/local/x86/objs-debug/hello-jni/hello-jni.o.d -ffunction-sections -funwind-tables -no-canonical-prefixes -fstack-protector -O2 -g -DNDEBUG -fomit-frame-pointer -fstrict-aliasing -funswitch-loops -finline-limit=300 -O0 -UNDEBUG -fno-omit-frame-pointer -fno-strict-aliasing -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-9/arch-x86/usr/include -c jni/hello-jni.c -o ./obj/local/x86/objs-debug/hello-jni/hello-jni.o \n" +
-                        "./obj/local/mips64/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c -> /ndk/toolchains/mips64el-linux-android-4.9/prebuilt/linux-x86_64/bin/mips64el-linux-android-gcc -MMD -MP -MF ./obj/local/mips64/objs-debug/hello-jni/hello-jni.o.d -fpic -fno-strict-aliasing -finline-functions -ffunction-sections -funwind-tables -fmessage-length=0 -fno-inline-functions-called-once -fgcse-after-reload -frerun-cse-after-loop -frename-registers -no-canonical-prefixes -O0 -g -fno-omit-frame-pointer -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-21/arch-mips64/usr/include -c jni/hello-jni.c -o ./obj/local/mips64/objs-debug/hello-jni/hello-jni.o \n" +
-                        "./obj/local/armeabi/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c -> /ndk/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/bin/arm-linux-androideabi-gcc -MMD -MP -MF ./obj/local/armeabi/objs-debug/hello-jni/hello-jni.o.d -fpic -ffunction-sections -funwind-tables -fstack-protector -no-canonical-prefixes -march=armv5te -mtune=xscale -msoft-float -mthumb -Os -g -DNDEBUG -fomit-frame-pointer -fno-strict-aliasing -finline-limit=64 -O0 -UNDEBUG -marm -fno-omit-frame-pointer -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-3/arch-arm/usr/include -c jni/hello-jni.c -o ./obj/local/armeabi/objs-debug/hello-jni/hello-jni.o \n" +
-                        "./obj/local/x86_64/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c -> /ndk/toolchains/x86_64-4.9/prebuilt/linux-x86_64/bin/x86_64-linux-android-gcc -MMD -MP -MF ./obj/local/x86_64/objs-debug/hello-jni/hello-jni.o.d -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -O2 -g -DNDEBUG -fomit-frame-pointer -fstrict-aliasing -funswitch-loops -finline-limit=300 -O0 -UNDEBUG -fno-omit-frame-pointer -fno-strict-aliasing -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-21/arch-x86_64/usr/include -c jni/hello-jni.c -o ./obj/local/x86_64/objs-debug/hello-jni/hello-jni.o \n" +
-                        "./obj/local/armeabi-v7a/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c -> /ndk/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/bin/arm-linux-androideabi-gcc -MMD -MP -MF ./obj/local/armeabi-v7a/objs-debug/hello-jni/hello-jni.o.d -fpic -ffunction-sections -funwind-tables -fstack-protector -no-canonical-prefixes -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp -mthumb -Os -g -DNDEBUG -fomit-frame-pointer -fno-strict-aliasing -finline-limit=64 -O0 -UNDEBUG -marm -fno-omit-frame-pointer -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-3/arch-arm/usr/include -c jni/hello-jni.c -o ./obj/local/armeabi-v7a/objs-debug/hello-jni/hello-jni.o \n");
+                "{\n" +
+                        "    buildFiles : [\"/projects/MyProject/jni/Android.mk\"],\n" +
+                        "    libraries : [\n" +
+                        "        \"mips/libhello-jni\" : {\n" +
+                        "            executable : \"ndk-build\",\n" +
+                        "            args : [\"./obj/local/mips/libhello-jni.so\"],\n" +
+                        "            toolchain : \"toolchain-mips\",\n" +
+                        "            output : \"./obj/local/mips/libhello-jni.so\",\n" +
+                        "            files : [\n" +
+                        "               { src : \"jni/hello-jni.c\",\n" +
+                        "                 flags : [ \"-MMD\", \"-MP\", \"-MF\", \"./obj/local/mips/objs-debug/hello-jni/hello-jni.o.d\", \"-fpic\", \"-fno-strict-aliasing\", \"-finline-functions\", \"-ffunction-sections\", \"-funwind-tables\", \"-fmessage-length=0\", \"-fno-inline-functions-called-once\", \"-fgcse-after-reload\", \"-frerun-cse-after-loop\", \"-frename-registers\", \"-no-canonical-prefixes\", \"-O0\", \"-g\", \"-fno-omit-frame-pointer\", \"-Ijni\", \"-DANDROID\", \"-Wa,--noexecstack\", \"-Wformat\", \"-Werror=format-security\", \"-I/ndk/platforms/android-9/arch-mips/usr/include\", \"-c\", \"jni/hello-jni.c\", \"-o\", \"./obj/local/mips/objs-debug/hello-jni/hello-jni.o\"]\n" +
+                        "               }\n" +
+                        "            ]\n" +
+                        "        },\n" +
+                        "        \"arm64-v8a/libhello-jni\" : {\n" +
+                        "            executable : \"ndk-build\",\n" +
+                        "            args : [\"./obj/local/arm64-v8a/libhello-jni.so\"],\n" +
+                        "            toolchain : \"toolchain-arm64-v8a\",\n" +
+                        "            output : \"./obj/local/arm64-v8a/libhello-jni.so\",\n" +
+                        "            files : [\n" +
+                        "               { src : \"jni/hello-jni.c\",\n" +
+                        "                 flags : [ \"-MMD\", \"-MP\", \"-MF\", \"./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o.d\", \"-fpic\", \"-ffunction-sections\", \"-funwind-tables\", \"-fstack-protector-strong\", \"-no-canonical-prefixes\", \"-O2\", \"-g\", \"-DNDEBUG\", \"-fomit-frame-pointer\", \"-fstrict-aliasing\", \"-funswitch-loops\", \"-finline-limit=300\", \"-O0\", \"-UNDEBUG\", \"-fno-omit-frame-pointer\", \"-fno-strict-aliasing\", \"-Ijni\", \"-DANDROID\", \"-Wa,--noexecstack\", \"-Wformat\", \"-Werror=format-security\", \"-I/ndk/platforms/android-21/arch-arm64/usr/include\", \"-c\", \"jni/hello-jni.c\", \"-o\", \"./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o\"]\n" +
+                        "               }\n" +
+                        "            ]\n" +
+                        "        },\n" +
+                        "        \"x86/libhello-jni\" : {\n" +
+                        "            executable : \"ndk-build\",\n" +
+                        "            args : [\"./obj/local/x86/libhello-jni.so\"],\n" +
+                        "            toolchain : \"toolchain-x86\",\n" +
+                        "            output : \"./obj/local/x86/libhello-jni.so\",\n" +
+                        "            files : [\n" +
+                        "               { src : \"jni/hello-jni.c\",\n" +
+                        "                 flags : [ \"-MMD\", \"-MP\", \"-MF\", \"./obj/local/x86/objs-debug/hello-jni/hello-jni.o.d\", \"-ffunction-sections\", \"-funwind-tables\", \"-no-canonical-prefixes\", \"-fstack-protector\", \"-O2\", \"-g\", \"-DNDEBUG\", \"-fomit-frame-pointer\", \"-fstrict-aliasing\", \"-funswitch-loops\", \"-finline-limit=300\", \"-O0\", \"-UNDEBUG\", \"-fno-omit-frame-pointer\", \"-fno-strict-aliasing\", \"-Ijni\", \"-DANDROID\", \"-Wa,--noexecstack\", \"-Wformat\", \"-Werror=format-security\", \"-I/ndk/platforms/android-9/arch-x86/usr/include\", \"-c\", \"jni/hello-jni.c\", \"-o\", \"./obj/local/x86/objs-debug/hello-jni/hello-jni.o\"]\n" +
+                        "               }\n" +
+                        "            ]\n" +
+                        "        },\n" +
+                        "        \"mips64/libhello-jni\" : {\n" +
+                        "            executable : \"ndk-build\",\n" +
+                        "            args : [\"./obj/local/mips64/libhello-jni.so\"],\n" +
+                        "            toolchain : \"toolchain-mips64\",\n" +
+                        "            output : \"./obj/local/mips64/libhello-jni.so\",\n" +
+                        "            files : [\n" +
+                        "               { src : \"jni/hello-jni.c\",\n" +
+                        "                 flags : [ \"-MMD\", \"-MP\", \"-MF\", \"./obj/local/mips64/objs-debug/hello-jni/hello-jni.o.d\", \"-fpic\", \"-fno-strict-aliasing\", \"-finline-functions\", \"-ffunction-sections\", \"-funwind-tables\", \"-fmessage-length=0\", \"-fno-inline-functions-called-once\", \"-fgcse-after-reload\", \"-frerun-cse-after-loop\", \"-frename-registers\", \"-no-canonical-prefixes\", \"-O0\", \"-g\", \"-fno-omit-frame-pointer\", \"-Ijni\", \"-DANDROID\", \"-Wa,--noexecstack\", \"-Wformat\", \"-Werror=format-security\", \"-I/ndk/platforms/android-21/arch-mips64/usr/include\", \"-c\", \"jni/hello-jni.c\", \"-o\", \"./obj/local/mips64/objs-debug/hello-jni/hello-jni.o\"]\n" +
+                        "               }\n" +
+                        "            ]\n" +
+                        "        },\n" +
+                        "        \"armeabi/libhello-jni\" : {\n" +
+                        "            executable : \"ndk-build\",\n" +
+                        "            args : [\"./obj/local/armeabi/libhello-jni.so\"],\n" +
+                        "            toolchain : \"toolchain-armeabi\",\n" +
+                        "            output : \"./obj/local/armeabi/libhello-jni.so\",\n" +
+                        "            files : [\n" +
+                        "               { src : \"jni/hello-jni.c\",\n" +
+                        "                 flags : [ \"-MMD\", \"-MP\", \"-MF\", \"./obj/local/armeabi/objs-debug/hello-jni/hello-jni.o.d\", \"-fpic\", \"-ffunction-sections\", \"-funwind-tables\", \"-fstack-protector\", \"-no-canonical-prefixes\", \"-march=armv5te\", \"-mtune=xscale\", \"-msoft-float\", \"-mthumb\", \"-Os\", \"-g\", \"-DNDEBUG\", \"-fomit-frame-pointer\", \"-fno-strict-aliasing\", \"-finline-limit=64\", \"-O0\", \"-UNDEBUG\", \"-marm\", \"-fno-omit-frame-pointer\", \"-Ijni\", \"-DANDROID\", \"-Wa,--noexecstack\", \"-Wformat\", \"-Werror=format-security\", \"-I/ndk/platforms/android-3/arch-arm/usr/include\", \"-c\", \"jni/hello-jni.c\", \"-o\", \"./obj/local/armeabi/objs-debug/hello-jni/hello-jni.o\"]\n" +
+                        "               }\n" +
+                        "            ]\n" +
+                        "        },\n" +
+                        "        \"x86_64/libhello-jni\" : {\n" +
+                        "            executable : \"ndk-build\",\n" +
+                        "            args : [\"./obj/local/x86_64/libhello-jni.so\"],\n" +
+                        "            toolchain : \"toolchain-x86_64\",\n" +
+                        "            output : \"./obj/local/x86_64/libhello-jni.so\",\n" +
+                        "            files : [\n" +
+                        "               { src : \"jni/hello-jni.c\",\n" +
+                        "                 flags : [ \"-MMD\", \"-MP\", \"-MF\", \"./obj/local/x86_64/objs-debug/hello-jni/hello-jni.o.d\", \"-ffunction-sections\", \"-funwind-tables\", \"-fstack-protector-strong\", \"-no-canonical-prefixes\", \"-O2\", \"-g\", \"-DNDEBUG\", \"-fomit-frame-pointer\", \"-fstrict-aliasing\", \"-funswitch-loops\", \"-finline-limit=300\", \"-O0\", \"-UNDEBUG\", \"-fno-omit-frame-pointer\", \"-fno-strict-aliasing\", \"-Ijni\", \"-DANDROID\", \"-Wa,--noexecstack\", \"-Wformat\", \"-Werror=format-security\", \"-I/ndk/platforms/android-21/arch-x86_64/usr/include\", \"-c\", \"jni/hello-jni.c\", \"-o\", \"./obj/local/x86_64/objs-debug/hello-jni/hello-jni.o\"]\n" +
+                        "               }\n" +
+                        "            ]\n" +
+                        "        },\n" +
+                        "        \"armeabi-v7a/libhello-jni\" : {\n" +
+                        "            executable : \"ndk-build\",\n" +
+                        "            args : [\"./obj/local/armeabi-v7a/libhello-jni.so\"],\n" +
+                        "            toolchain : \"toolchain-armeabi-v7a\",\n" +
+                        "            output : \"./obj/local/armeabi-v7a/libhello-jni.so\",\n" +
+                        "            files : [\n" +
+                        "               { src : \"jni/hello-jni.c\",\n" +
+                        "                 flags : [ \"-MMD\", \"-MP\", \"-MF\", \"./obj/local/armeabi-v7a/objs-debug/hello-jni/hello-jni.o.d\", \"-fpic\", \"-ffunction-sections\", \"-funwind-tables\", \"-fstack-protector\", \"-no-canonical-prefixes\", \"-march=armv7-a\", \"-mfpu=vfpv3-d16\", \"-mfloat-abi=softfp\", \"-mthumb\", \"-Os\", \"-g\", \"-DNDEBUG\", \"-fomit-frame-pointer\", \"-fno-strict-aliasing\", \"-finline-limit=64\", \"-O0\", \"-UNDEBUG\", \"-marm\", \"-fno-omit-frame-pointer\", \"-Ijni\", \"-DANDROID\", \"-Wa,--noexecstack\", \"-Wformat\", \"-Werror=format-security\", \"-I/ndk/platforms/android-3/arch-arm/usr/include\", \"-c\", \"jni/hello-jni.c\", \"-o\", \"./obj/local/armeabi-v7a/objs-debug/hello-jni/hello-jni.o\"]\n" +
+                        "               }\n" +
+                        "            ]\n" +
+                        "        }\n" +
+                        "    ],\n" +
+                        "    toolchains : [\n" +
+                        "        toolchain-armeabi : {\n" +
+                        "            cCompilerExecutable : \"/ndk/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/bin/arm-linux-androideabi-gcc\"\n" +
+                        "        },\n" +
+                        "        toolchain-mips64 : {\n" +
+                        "            cCompilerExecutable : \"/ndk/toolchains/mips64el-linux-android-4.9/prebuilt/linux-x86_64/bin/mips64el-linux-android-gcc\"\n" +
+                        "        },\n" +
+                        "        toolchain-mips : {\n" +
+                        "            cCompilerExecutable : \"/ndk/toolchains/mipsel-linux-android-4.8/prebuilt/linux-x86_64/bin/mipsel-linux-android-gcc\"\n" +
+                        "        },\n" +
+                        "        toolchain-arm64-v8a : {\n" +
+                        "            cCompilerExecutable : \"/ndk/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc\"\n" +
+                        "        },\n" +
+                        "        toolchain-x86_64 : {\n" +
+                        "            cCompilerExecutable : \"/ndk/toolchains/x86_64-4.9/prebuilt/linux-x86_64/bin/x86_64-linux-android-gcc\"\n" +
+                        "        },\n" +
+                        "        toolchain-armeabi-v7a : {\n" +
+                        "            cCompilerExecutable : \"/ndk/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/bin/arm-linux-androideabi-gcc\"\n" +
+                        "        },\n" +
+                        "        toolchain-x86 : {\n" +
+                        "            cCompilerExecutable : \"/ndk/toolchains/x86-4.8/prebuilt/linux-x86_64/bin/i686-linux-android-gcc\"\n" +
+                        "        }\n" +
+                        "    ]\n" +
+                        "}\n");
 
     }
 
@@ -410,13 +514,6 @@ public class AnalyzeFlowTest {
                         "install -p ./obj/local/mips/libTeapotNativeActivity.so ./libs/mips/libTeapotNativeActivity.so\n" +
                         "/ndk/toolchains/mipsel-linux-android-4.8/prebuilt/linux-x86_64/bin/mipsel-linux-android-strip --strip-unneeded  ./libs/mips/libTeapotNativeActivity.so");
 
-        checkFlow(sb.toString(), -729675016);
-    }
-
-    @Test
-    public void simple() throws FileNotFoundException {
-        checkFlow("g++ a.c -o a.o\n" +
-                "g++ a.o -o a.so", "a.so:\n" +
-                "  a.c -> g++ a.c -o a.o \n");
+        checkFlow(sb.toString(), -1750776416);
     }
 }
