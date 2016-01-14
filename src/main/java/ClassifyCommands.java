@@ -36,7 +36,7 @@ class ClassifyCommands {
         boolean isMatch(Parser.CommandExpression command);
     }
 
-    static class Command {
+    static abstract class Command {
         final Parser.CommandExpression command;
         final List<String> inputs;
         final List<String> outputs;
@@ -49,8 +49,10 @@ class ClassifyCommands {
 
         @Override
         public int hashCode() {
-            return command.hashCode();
+            return toString().hashCode();
         }
+
+        abstract Boolean isFlagDefined(String define);
 
         @Override
         public String toString() {
@@ -81,7 +83,12 @@ class ClassifyCommands {
                 inputs.add(arg.arg);
 
             }
-            return new Command(command, inputs, outputs);
+            return new Command(command, inputs, outputs) {
+                @Override
+                Boolean isFlagDefined(String define) {
+                    return null;
+                }
+            };
         }
 
         @Override
@@ -114,7 +121,22 @@ class ClassifyCommands {
                 inputs.add(arg.arg);
 
             }
-            return new Command(command, inputs, outputs);
+            return new Command(command, inputs, outputs) {
+                @Override
+                Boolean isFlagDefined(String define) {
+                    Boolean defined = null;
+                    String defineOn = "-D" + define;
+                    String defineOff = "-U" + define;
+                    for (Parser.ArgumentExpression flag : this.command.args) {
+                        if (defineOff.equals(flag.arg)) {
+                            defined = false;
+                        } else if (defineOn.equals(flag.arg)) {
+                            defined = true;
+                        }
+                    }
+                    return defined;
+                }
+            };
         }
 
         @Override

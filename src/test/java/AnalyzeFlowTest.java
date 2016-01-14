@@ -1,9 +1,11 @@
+import com.google.common.collect.ListMultimap;
 import org.junit.Test;
 
 import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 
 /**
  * Created by jomof on 1/8/16.
@@ -13,12 +15,12 @@ public class AnalyzeFlowTest {
         Parser parser = new Parser();
         List<Parser.Node> nodes = parser.parse(string);
         List<ClassifyCommands.Command> commands = ClassifyCommands.accept(nodes);
-        Map<String, Set<AnalyzeFlow.CommandInput>> io = AnalyzeFlow.accept(commands);
+        ListMultimap<String, Set<AnalyzeFlow.CommandInput>> io = AnalyzeFlow.accept(commands);
         StringBuilder sb = new StringBuilder();
-        for (String output : io.keySet()) {
-            sb.append(output);
+        for (Map.Entry<String, Set<AnalyzeFlow.CommandInput>> output : io.entries()) {
+            sb.append(output.getKey());
             sb.append(":\n");
-            for (AnalyzeFlow.CommandInput input : io.get(output)) {
+            for (AnalyzeFlow.CommandInput input : output.getValue()) {
                 sb.append("  ");
                 sb.append(input);
                 sb.append("\n");
@@ -33,12 +35,12 @@ public class AnalyzeFlowTest {
         Parser parser = new Parser();
         List<Parser.Node> nodes = parser.parse(string);
         List<ClassifyCommands.Command> commands = ClassifyCommands.accept(nodes);
-        Map<String, Set<AnalyzeFlow.CommandInput>> io = AnalyzeFlow.accept(commands);
+        ListMultimap<String, Set<AnalyzeFlow.CommandInput>> io = AnalyzeFlow.accept(commands);
         StringBuilder sb = new StringBuilder();
-        for (String output : io.keySet()) {
-            sb.append(output);
+        for (Map.Entry<String, Set<AnalyzeFlow.CommandInput>> output : io.entries()) {
+            sb.append(output.getKey());
             sb.append(":\n");
-            for (AnalyzeFlow.CommandInput input : io.get(output)) {
+            for (AnalyzeFlow.CommandInput input : output.getValue()) {
                 sb.append("  ");
                 sb.append(input);
                 sb.append("\n");
@@ -178,12 +180,12 @@ public class AnalyzeFlowTest {
                         "echo [mips] \"Install        \": \"libhello-jni.so => libs/mips/libhello-jni.so\"\n" +
                         "install -p ./obj/local/mips/libhello-jni.so ./libs/mips/libhello-jni.so\n" +
                         "/ndk/toolchains/mipsel-linux-android-4.8/prebuilt/linux-x86_64/bin/mipsel-linux-android-strip --strip-unneeded  ./libs/mips/libhello-jni.so",
-                "./obj/local/mips/libhello-jni.so:\n" +
-                        "  jni/hello-jni.c -> /ndk/toolchains/mipsel-linux-android-4.8/prebuilt/linux-x86_64/bin/mipsel-linux-android-gcc -MMD -MP -MF ./obj/local/mips/objs-debug/hello-jni/hello-jni.o.d -fpic -fno-strict-aliasing -finline-functions -ffunction-sections -funwind-tables -fmessage-length=0 -fno-inline-functions-called-once -fgcse-after-reload -frerun-cse-after-loop -frename-registers -no-canonical-prefixes -O0 -g -fno-omit-frame-pointer -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-9/arch-mips/usr/include -c jni/hello-jni.c -o ./obj/local/mips/objs-debug/hello-jni/hello-jni.o \n" +
-                        "./obj/local/arm64-v8a/libhello-jni.so:\n" +
+                "./obj/local/arm64-v8a/libhello-jni.so:\n" +
                         "  jni/hello-jni.c -> /ndk/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc -MMD -MP -MF ./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o.d -fpic -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -O2 -g -DNDEBUG -fomit-frame-pointer -fstrict-aliasing -funswitch-loops -finline-limit=300 -O0 -UNDEBUG -fno-omit-frame-pointer -fno-strict-aliasing -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-21/arch-arm64/usr/include -c jni/hello-jni.c -o ./obj/local/arm64-v8a/objs-debug/hello-jni/hello-jni.o \n" +
                         "./obj/local/x86/libhello-jni.so:\n" +
                         "  jni/hello-jni.c -> /ndk/toolchains/x86-4.8/prebuilt/linux-x86_64/bin/i686-linux-android-gcc -MMD -MP -MF ./obj/local/x86/objs-debug/hello-jni/hello-jni.o.d -ffunction-sections -funwind-tables -no-canonical-prefixes -fstack-protector -O2 -g -DNDEBUG -fomit-frame-pointer -fstrict-aliasing -funswitch-loops -finline-limit=300 -O0 -UNDEBUG -fno-omit-frame-pointer -fno-strict-aliasing -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-9/arch-x86/usr/include -c jni/hello-jni.c -o ./obj/local/x86/objs-debug/hello-jni/hello-jni.o \n" +
+                        "./obj/local/mips/libhello-jni.so:\n" +
+                        "  jni/hello-jni.c -> /ndk/toolchains/mipsel-linux-android-4.8/prebuilt/linux-x86_64/bin/mipsel-linux-android-gcc -MMD -MP -MF ./obj/local/mips/objs-debug/hello-jni/hello-jni.o.d -fpic -fno-strict-aliasing -finline-functions -ffunction-sections -funwind-tables -fmessage-length=0 -fno-inline-functions-called-once -fgcse-after-reload -frerun-cse-after-loop -frename-registers -no-canonical-prefixes -O0 -g -fno-omit-frame-pointer -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-9/arch-mips/usr/include -c jni/hello-jni.c -o ./obj/local/mips/objs-debug/hello-jni/hello-jni.o \n" +
                         "./obj/local/mips64/libhello-jni.so:\n" +
                         "  jni/hello-jni.c -> /ndk/toolchains/mips64el-linux-android-4.9/prebuilt/linux-x86_64/bin/mips64el-linux-android-gcc -MMD -MP -MF ./obj/local/mips64/objs-debug/hello-jni/hello-jni.o.d -fpic -fno-strict-aliasing -finline-functions -ffunction-sections -funwind-tables -fmessage-length=0 -fno-inline-functions-called-once -fgcse-after-reload -frerun-cse-after-loop -frename-registers -no-canonical-prefixes -O0 -g -fno-omit-frame-pointer -Ijni -DANDROID -Wa,--noexecstack -Wformat -Werror=format-security -I/ndk/platforms/android-21/arch-mips64/usr/include -c jni/hello-jni.c -o ./obj/local/mips64/objs-debug/hello-jni/hello-jni.o \n" +
                         "./obj/local/armeabi/libhello-jni.so:\n" +

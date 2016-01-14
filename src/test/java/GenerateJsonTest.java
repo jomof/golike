@@ -1,8 +1,12 @@
+import com.google.common.base.Charsets;
+import com.google.common.collect.ListMultimap;
+import com.google.common.io.Files;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -13,7 +17,7 @@ public class GenerateJsonTest {
         Parser parser = new Parser();
         List<Parser.Node> nodes = parser.parse(string);
         List<ClassifyCommands.Command> commands = ClassifyCommands.accept(nodes);
-        Map<String, Set<AnalyzeFlow.CommandInput>> io = AnalyzeFlow.accept(commands);
+        ListMultimap<String, Set<AnalyzeFlow.CommandInput>> io = AnalyzeFlow.accept(commands);
         String json = GenerateJson.accept("/projects/MyProject/jni/Android.mk", io);
 
         if (!expected.equals(json.toString())) {
@@ -25,13 +29,71 @@ public class GenerateJsonTest {
         Parser parser = new Parser();
         List<Parser.Node> nodes = parser.parse(string);
         List<ClassifyCommands.Command> commands = ClassifyCommands.accept(nodes);
-        Map<String, Set<AnalyzeFlow.CommandInput>> io = AnalyzeFlow.accept(commands);
+        ListMultimap<String, Set<AnalyzeFlow.CommandInput>> io = AnalyzeFlow.accept(commands);
         String json = GenerateJson.accept("/projects/MyProject/jni/Android.mk", io);
 
         if (expectedHashCode != json.toString().hashCode()) {
             throw new RuntimeException(
                     String.format("Expected hashCode '%s' but got '%s '%s'", expectedHashCode, json.hashCode(), json));
         }
+    }
+
+    private void checkFlowFile(String filename, int expectedHashCode) throws IOException {
+        Parser parser = new Parser();
+        String string = Files.toString(new File(filename).getCanonicalFile(), Charsets.UTF_8);
+        List<Parser.Node> nodes = parser.parse(string);
+        List<ClassifyCommands.Command> commands = ClassifyCommands.accept(nodes);
+        ListMultimap<String, Set<AnalyzeFlow.CommandInput>> io = AnalyzeFlow.accept(commands);
+        String json = GenerateJson.accept("/projects/MyProject/jni/Android.mk", io);
+
+        if (expectedHashCode != json.toString().hashCode()) {
+            throw new RuntimeException(
+                    String.format("Expected hashCode '%s' but got '%s '%s'", expectedHashCode, json.hashCode(), json));
+        }
+    }
+
+    @Test
+    public void debugAndRelease() throws IOException {
+        checkFlowFile("test-debugAndRelease-linux.txt", -36687529);
+    }
+
+    @Test
+    public void doubleFlavor() throws FileNotFoundException {
+        checkFlow("g++ a.c -o x/a.o -DNDEBUG\n" +
+                "g++ x/a.o -o x/a.so\n" +
+                "g++ a.c -o x/a.o -UNDEBUG\n" +
+                "g++ x/a.o -o x/a.so\n", "{\n" +
+                "    buildFiles : [\"/projects/MyProject/jni/Android.mk\"],\n" +
+                "    libraries : [\n" +
+                "        \"x/a-Debug\" : {\n" +
+                "            executable : \"ndk-build\",\n" +
+                "            args : [\"x/a.so\"],\n" +
+                "            toolchain : \"toolchain\",\n" +
+                "            output : \"x/a.so\",\n" +
+                "            files : [\n" +
+                "               { src : \"a.c\",\n" +
+                "                 flags : [ \"a.c\", \"-o\", \"x/a.o\", \"-DNDEBUG\"]\n" +
+                "               }\n" +
+                "            ]\n" +
+                "        },\n" +
+                "        \"x/a-Release\" : {\n" +
+                "            executable : \"ndk-build\",\n" +
+                "            args : [\"x/a.so\"],\n" +
+                "            toolchain : \"toolchain\",\n" +
+                "            output : \"x/a.so\",\n" +
+                "            files : [\n" +
+                "               { src : \"a.c\",\n" +
+                "                 flags : [ \"a.c\", \"-o\", \"x/a.o\", \"-UNDEBUG\"]\n" +
+                "               }\n" +
+                "            ]\n" +
+                "        }\n" +
+                "    ],\n" +
+                "    toolchains : [\n" +
+                "        toolchain : {\n" +
+                "            cCompilerExecutable : \"g++\"\n" +
+                "        }\n" +
+                "    ]\n" +
+                "}\n");
     }
 
     @Test
@@ -194,18 +256,7 @@ public class GenerateJsonTest {
                 "{\n" +
                         "    buildFiles : [\"/projects/MyProject/jni/Android.mk\"],\n" +
                         "    libraries : [\n" +
-                        "        \"mips/libhello-jni\" : {\n" +
-                        "            executable : \"ndk-build\",\n" +
-                        "            args : [\"./obj/local/mips/libhello-jni.so\"],\n" +
-                        "            toolchain : \"toolchain-mips\",\n" +
-                        "            output : \"./obj/local/mips/libhello-jni.so\",\n" +
-                        "            files : [\n" +
-                        "               { src : \"jni/hello-jni.c\",\n" +
-                        "                 flags : [ \"-MMD\", \"-MP\", \"-MF\", \"./obj/local/mips/objs-debug/hello-jni/hello-jni.o.d\", \"-fpic\", \"-fno-strict-aliasing\", \"-finline-functions\", \"-ffunction-sections\", \"-funwind-tables\", \"-fmessage-length=0\", \"-fno-inline-functions-called-once\", \"-fgcse-after-reload\", \"-frerun-cse-after-loop\", \"-frename-registers\", \"-no-canonical-prefixes\", \"-O0\", \"-g\", \"-fno-omit-frame-pointer\", \"-Ijni\", \"-DANDROID\", \"-Wa,--noexecstack\", \"-Wformat\", \"-Werror=format-security\", \"-I/ndk/platforms/android-9/arch-mips/usr/include\", \"-c\", \"jni/hello-jni.c\", \"-o\", \"./obj/local/mips/objs-debug/hello-jni/hello-jni.o\"]\n" +
-                        "               }\n" +
-                        "            ]\n" +
-                        "        },\n" +
-                        "        \"arm64-v8a/libhello-jni\" : {\n" +
+                        "        \"arm64-v8a-libhello-jni-Release\" : {\n" +
                         "            executable : \"ndk-build\",\n" +
                         "            args : [\"./obj/local/arm64-v8a/libhello-jni.so\"],\n" +
                         "            toolchain : \"toolchain-arm64-v8a\",\n" +
@@ -216,7 +267,7 @@ public class GenerateJsonTest {
                         "               }\n" +
                         "            ]\n" +
                         "        },\n" +
-                        "        \"x86/libhello-jni\" : {\n" +
+                        "        \"x86-libhello-jni-Release\" : {\n" +
                         "            executable : \"ndk-build\",\n" +
                         "            args : [\"./obj/local/x86/libhello-jni.so\"],\n" +
                         "            toolchain : \"toolchain-x86\",\n" +
@@ -227,7 +278,18 @@ public class GenerateJsonTest {
                         "               }\n" +
                         "            ]\n" +
                         "        },\n" +
-                        "        \"mips64/libhello-jni\" : {\n" +
+                        "        \"mips-libhello-jni-Release\" : {\n" +
+                        "            executable : \"ndk-build\",\n" +
+                        "            args : [\"./obj/local/mips/libhello-jni.so\"],\n" +
+                        "            toolchain : \"toolchain-mips\",\n" +
+                        "            output : \"./obj/local/mips/libhello-jni.so\",\n" +
+                        "            files : [\n" +
+                        "               { src : \"jni/hello-jni.c\",\n" +
+                        "                 flags : [ \"-MMD\", \"-MP\", \"-MF\", \"./obj/local/mips/objs-debug/hello-jni/hello-jni.o.d\", \"-fpic\", \"-fno-strict-aliasing\", \"-finline-functions\", \"-ffunction-sections\", \"-funwind-tables\", \"-fmessage-length=0\", \"-fno-inline-functions-called-once\", \"-fgcse-after-reload\", \"-frerun-cse-after-loop\", \"-frename-registers\", \"-no-canonical-prefixes\", \"-O0\", \"-g\", \"-fno-omit-frame-pointer\", \"-Ijni\", \"-DANDROID\", \"-Wa,--noexecstack\", \"-Wformat\", \"-Werror=format-security\", \"-I/ndk/platforms/android-9/arch-mips/usr/include\", \"-c\", \"jni/hello-jni.c\", \"-o\", \"./obj/local/mips/objs-debug/hello-jni/hello-jni.o\"]\n" +
+                        "               }\n" +
+                        "            ]\n" +
+                        "        },\n" +
+                        "        \"mips64-libhello-jni-Release\" : {\n" +
                         "            executable : \"ndk-build\",\n" +
                         "            args : [\"./obj/local/mips64/libhello-jni.so\"],\n" +
                         "            toolchain : \"toolchain-mips64\",\n" +
@@ -238,7 +300,7 @@ public class GenerateJsonTest {
                         "               }\n" +
                         "            ]\n" +
                         "        },\n" +
-                        "        \"armeabi/libhello-jni\" : {\n" +
+                        "        \"armeabi-libhello-jni-Release\" : {\n" +
                         "            executable : \"ndk-build\",\n" +
                         "            args : [\"./obj/local/armeabi/libhello-jni.so\"],\n" +
                         "            toolchain : \"toolchain-armeabi\",\n" +
@@ -249,7 +311,7 @@ public class GenerateJsonTest {
                         "               }\n" +
                         "            ]\n" +
                         "        },\n" +
-                        "        \"x86_64/libhello-jni\" : {\n" +
+                        "        \"x86_64-libhello-jni-Release\" : {\n" +
                         "            executable : \"ndk-build\",\n" +
                         "            args : [\"./obj/local/x86_64/libhello-jni.so\"],\n" +
                         "            toolchain : \"toolchain-x86_64\",\n" +
@@ -260,7 +322,7 @@ public class GenerateJsonTest {
                         "               }\n" +
                         "            ]\n" +
                         "        },\n" +
-                        "        \"armeabi-v7a/libhello-jni\" : {\n" +
+                        "        \"armeabi-v7a-libhello-jni-Release\" : {\n" +
                         "            executable : \"ndk-build\",\n" +
                         "            args : [\"./obj/local/armeabi-v7a/libhello-jni.so\"],\n" +
                         "            toolchain : \"toolchain-armeabi-v7a\",\n" +
@@ -514,6 +576,6 @@ public class GenerateJsonTest {
                         "install -p ./obj/local/mips/libTeapotNativeActivity.so ./libs/mips/libTeapotNativeActivity.so\n" +
                         "/ndk/toolchains/mipsel-linux-android-4.8/prebuilt/linux-x86_64/bin/mipsel-linux-android-strip --strip-unneeded  ./libs/mips/libTeapotNativeActivity.so");
 
-        checkFlow(sb.toString(), -1750776416);
+        checkFlow(sb.toString(), -2070465474);
     }
 }
