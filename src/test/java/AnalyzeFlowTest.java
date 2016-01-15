@@ -1,3 +1,6 @@
+import com.google.NdkBuildToAndroidStudio.AnalyzeFlow;
+import com.google.NdkBuildToAndroidStudio.ClassifyCommands;
+import com.google.NdkBuildToAndroidStudio.Parser;
 import com.google.common.collect.ListMultimap;
 import org.junit.Test;
 

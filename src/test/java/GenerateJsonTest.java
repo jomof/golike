@@ -1,3 +1,7 @@
+import com.google.NdkBuildToAndroidStudio.AnalyzeFlow;
+import com.google.NdkBuildToAndroidStudio.ClassifyCommands;
+import com.google.NdkBuildToAndroidStudio.GenerateJson;
+import com.google.NdkBuildToAndroidStudio.Parser;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ListMultimap;
 import com.google.common.io.Files;

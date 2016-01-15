@@ -1,3 +1,5 @@
+import com.google.NdkBuildToAndroidStudio.TokenReceiver;
+import com.google.NdkBuildToAndroidStudio.Tokenizer;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -61,15 +63,13 @@ public class TokenizerTest {
     }
 
     @Test
-    public void twoCommands() throws IOException {
-        checkStringEquals("ls\nmkdir", "{command:ls}\n" +
-                "{command:mkdir}");
-    }
-
-
-    @Test
     public void equals() throws IOException {
         checkStringEquals("a = b \\\n\ta", "{command:a} {arg:=} {arg:b} {arg:a}");
+    }
+
+    @Test
+    public void equals1() throws IOException {
+        checkStringEquals("a := b=c", "{command:a} {arg::=} {arg:b=c}");
     }
 
     @Test
@@ -111,11 +111,6 @@ public class TokenizerTest {
     @Test
     public void quote() throws IOException {
         checkStringEquals("@echo \"yo dog\"", "{command:@echo} {arg:\"yo dog\"}");
-    }
-
-    @Test
-    public void equals1() throws IOException {
-        checkStringEquals("a := b=c", "{command:a} {arg::=} {arg:b=c}");
     }
 
    // @Test
@@ -590,8 +585,24 @@ public class TokenizerTest {
         checkFile("support-files/android-ndk-android-mk/san-angeles/jni/Android.mk");
     }
 
+    @Test
+    public void twoCommands() throws IOException {
+        checkStringEquals("ls\nmkdir", "{command:ls}\n" +
+                "{command:mkdir}");
+    }
+
     static class StringPrintingTokenReceiver implements TokenReceiver {
         public StringBuilder sb = new StringBuilder();
+
+        @Override
+        public void argument(String identifier) {
+            sb.append(String.format("{arg:%s}", identifier));
+        }
+
+        @Override
+        public void command(String identifier) {
+            sb.append(String.format("{command:%s}", identifier));
+        }
 
         @Override
         public void comment(String comment) {
@@ -601,16 +612,6 @@ public class TokenizerTest {
         @Override
         public void endline() {
             sb.append("\n");
-        }
-
-        @Override
-        public void command(String identifier) {
-            sb.append(String.format("{command:%s}", identifier));
-        }
-
-        @Override
-        public void argument(String identifier) {
-            sb.append(String.format("{arg:%s}", identifier));
         }
 
         @Override

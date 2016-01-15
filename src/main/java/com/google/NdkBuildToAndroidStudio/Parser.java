@@ -1,3 +1,5 @@
+package com.google.NdkBuildToAndroidStudio;
+
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -5,7 +7,7 @@ import java.util.List;
 /**
  * Created by jomof on 12/11/15.
  */
-class Parser {
+public class Parser {
     private LinkedList<LinkedList<Node>> stack_ =  new LinkedList<LinkedList<Node>>();
 
     public List<Node> parse(String string) {
@@ -108,14 +110,14 @@ class Parser {
 
     }
 
-    enum Type {
+    public enum Type {
         TYPE_WHITESPACE,
         TYPE_COMMAND_EXPRESSION,
         TYPE_ARGUMENT_EXPRESSION,
     }
 
-    static class Node {
-        final Type type;
+    public static class Node {
+        final public Type type;
         Node(Type type) {
             this.type = type;
         }
@@ -127,8 +129,8 @@ class Parser {
         }
     }
 
-    static class ArgumentExpression extends Node {
-        final String arg;
+    static public class ArgumentExpression extends Node {
+        final public String arg;
 
         ArgumentExpression(String arg) {
             super(Type.TYPE_ARGUMENT_EXPRESSION);
@@ -136,9 +138,9 @@ class Parser {
         }
     }
 
-    static class CommandExpression extends Node {
-        final String command;
-        final List<ArgumentExpression> args;
+    public static class CommandExpression extends Node {
+        final public String command;
+        final public List<ArgumentExpression> args;
 
         CommandExpression(String command) {
             super(Type.TYPE_COMMAND_EXPRESSION);

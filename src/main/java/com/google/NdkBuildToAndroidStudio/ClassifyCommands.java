@@ -1,3 +1,5 @@
+package com.google.NdkBuildToAndroidStudio;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -6,14 +8,15 @@ import java.util.List;
  * Find compiler commands (g++, gcc, clang) and extract inputs and outputs according to the command line rules of that
  * tool
  */
-class ClassifyCommands {
+public class ClassifyCommands {
 
     private static CommandClassifier classifiers[] = {
             new GccClassifier(),
-            new GccArClassifier()
+            new GccArClassifier(),
+            new NdkBuildFlagsClassifier()
     };
 
-    static List<Command> accept(List<Parser.Node> nodes) {
+    public static List<Command> accept(List<Parser.Node> nodes) {
         List<Command> commands = new ArrayList<Command>();
 
         for (Parser.Node node : nodes) {
@@ -36,10 +39,10 @@ class ClassifyCommands {
         boolean isMatch(Parser.CommandExpression command);
     }
 
-    static abstract class Command {
+    public static abstract class Command {
+        final public List<String> inputs;
+        final public List<String> outputs;
         final Parser.CommandExpression command;
-        final List<String> inputs;
-        final List<String> outputs;
 
         Command(Parser.CommandExpression command, List<String> inputs, List<String> outputs) {
             this.command = command;
@@ -57,6 +60,26 @@ class ClassifyCommands {
         @Override
         public String toString() {
             return command.toString();
+        }
+    }
+
+    static class NdkBuildFlagsClassifier implements CommandClassifier {
+
+        @Override
+        public Command createCommand(Parser.CommandExpression command) {
+            List<String> inputs = new ArrayList<String>();
+            List<String> outputs = new ArrayList<String>();
+            return new Command(command, inputs, outputs) {
+                @Override
+                Boolean isFlagDefined(String define) {
+                    return null;
+                }
+            };
+        }
+
+        @Override
+        public boolean isMatch(Parser.CommandExpression command) {
+            return command.command.endsWith("set-ndk-build-flags");
         }
     }
 

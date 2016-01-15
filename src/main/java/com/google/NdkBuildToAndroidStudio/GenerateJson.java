@@ -1,3 +1,5 @@
+package com.google.NdkBuildToAndroidStudio;
+
 import com.google.common.collect.ListMultimap;
 
 import java.util.HashMap;

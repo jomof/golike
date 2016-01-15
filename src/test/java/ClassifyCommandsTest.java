@@ -1,3 +1,5 @@
+import com.google.NdkBuildToAndroidStudio.ClassifyCommands;
+import com.google.NdkBuildToAndroidStudio.Parser;
 import org.junit.Test;
 
 import java.io.FileNotFoundException;
@@ -9,10 +11,26 @@ import java.util.List;
 public class ClassifyCommandsTest {
 
 
-    @Test
-    public void simple() throws FileNotFoundException {
-        checkClassify("g++ a.c -o a.o\n" +
-                "g++ a.o -o a.so");
+    private static void checkClassify(String string) {
+        Parser parser = new Parser();
+        List<Parser.Node> nodes = parser.parse(string);
+        List<ClassifyCommands.Command> commands = ClassifyCommands.accept(nodes);
+        StringBuilder sb = new StringBuilder();
+        for (ClassifyCommands.Command command : commands) {
+            sb.append("[\n");
+            for (String input : command.inputs) {
+                sb.append(" in:");
+                sb.append(input);
+                sb.append("\n");
+            }
+            for (String output : command.outputs) {
+                sb.append(" out:");
+                sb.append(output);
+                sb.append("\n");
+            }
+            sb.append("]\n");
+        }
+        System.out.printf("%s", sb);
     }
 
     @Test
@@ -136,25 +154,9 @@ public class ClassifyCommandsTest {
 
     }
 
-    private static void checkClassify(String string) {
-        Parser parser = new Parser();
-        List<Parser.Node> nodes = parser.parse(string);
-        List<ClassifyCommands.Command> commands = ClassifyCommands.accept(nodes);
-        StringBuilder sb = new StringBuilder();
-        for (ClassifyCommands.Command command : commands) {
-            sb.append("[\n");
-            for (String input : command.inputs) {
-                sb.append(" in:");
-                sb.append(input);
-                sb.append("\n");
-            }
-            for (String output : command.outputs) {
-                sb.append(" out:");
-                sb.append(output);
-                sb.append("\n");
-            }
-            sb.append("]\n");
-        }
-        System.out.printf("%s", sb);
+    @Test
+    public void simple() throws FileNotFoundException {
+        checkClassify("g++ a.c -o a.o\n" +
+                "g++ a.o -o a.so");
     }
 }

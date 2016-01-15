@@ -1,3 +1,5 @@
+package com.google.NdkBuildToAndroidStudio;
+
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 
@@ -9,7 +11,7 @@ import java.util.*;
 public class AnalyzeFlow {
 
     // Map key = output, map value = inputs
-    static ListMultimap<String, Set<CommandInput>> accept(List<ClassifyCommands.Command> commands) {
+    public static ListMultimap<String, Set<CommandInput>> accept(List<ClassifyCommands.Command> commands) {
 
         // For each filename, record the last command that created it.
         Map<String, Integer> outputToCommand = new HashMap<String, Integer>();
@@ -60,7 +62,7 @@ public class AnalyzeFlow {
     }
 
 
-    static class CommandInput {
+    public static class CommandInput {
         public final String filename;
         public final ClassifyCommands.Command command;
 

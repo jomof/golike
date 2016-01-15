@@ -1,12 +1,9 @@
+package com.google.NdkBuildToAndroidStudio;
+
 /**
  * Created by jomof on 1/4/16.
  */
-class Tokenizer {
-    private enum State {
-        FIRST,
-        NOT_FIRST
-    }
-
+public class Tokenizer {
     private State state = State.FIRST;
 
     private static int readWhitespace(String string, int index, TokenReceiver receiver) {
@@ -39,21 +36,29 @@ class Tokenizer {
         return index;
     }
 
-    private int readString(String string, int index, TokenReceiver receiver) {
-        int start = index;
-        ++index;
-        while(index < string.length()
-                && string.charAt(index) != '\"') {
-            ++index;
+    public static void apply(String string, TokenReceiver receiver) {
+        Tokenizer tokenizer = new Tokenizer();
+        int index = 0;
+        string = Decontinuizer.apply(string);
+        while (index != -1 && index != string.length()) {
+            index = tokenizer.readToken(string, index, receiver);
         }
-        ++index;
+        receiver.endline();
+    }
 
-        commandOrArgument(receiver, string.substring(start, index));
+    private void commandOrArgument(TokenReceiver receiver, String identifier) {
+        switch (state) {
+            case FIRST:
+                receiver.command(identifier);
+                state = State.NOT_FIRST;
+                break;
+            case NOT_FIRST:
+                receiver.argument(identifier);
+                break;
+            default:
+                throw new RuntimeException(state.toString());
 
-        if (index == string.length()) {
-            return -1;
         }
-        return index;
     }
 
     private int readIdentifier(String string, int index, TokenReceiver receiver) {
@@ -75,19 +80,21 @@ class Tokenizer {
         return index;
     }
 
-    private void commandOrArgument(TokenReceiver receiver, String identifier) {
-        switch (state) {
-            case FIRST:
-                receiver.command(identifier);
-                state = State.NOT_FIRST;
-                break;
-            case NOT_FIRST:
-                receiver.argument(identifier);
-                break;
-            default:
-                throw new RuntimeException(state.toString());
-
+    private int readString(String string, int index, TokenReceiver receiver) {
+        int start = index;
+        ++index;
+        while (index < string.length()
+                && string.charAt(index) != '\"') {
+            ++index;
         }
+        ++index;
+
+        commandOrArgument(receiver, string.substring(start, index));
+
+        if (index == string.length()) {
+            return -1;
+        }
+        return index;
     }
 
     private int readToken(String string, int index, TokenReceiver receiver) {
@@ -116,13 +123,8 @@ class Tokenizer {
         return readIdentifier(string, index, receiver);
     }
 
-    public static void apply(String string, TokenReceiver receiver) {
-        Tokenizer tokenizer = new Tokenizer();
-        int index = 0;
-        string = Decontinuizer.apply(string);
-        while(index != -1 && index != string.length()) {
-            index = tokenizer.readToken(string, index, receiver);
-        }
-        receiver.endline();
+    private enum State {
+        FIRST,
+        NOT_FIRST
     }
 }

@@ -1,3 +1,5 @@
+package com.google.NdkBuildToAndroidStudio;
+
 /**
  * Created by jomof on 1/5/16.
  */
